@@ -1,42 +1,41 @@
-# === Unreal Engine Standard Ignores ===
-Binaries/
-Build/
-DerivedDataCache/
-Intermediate/
-Saved/
-BuildHistory.json
-*.log
-*.tmp
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
 *.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Linker files
+*.ilk
+
+# Debugger Files
 *.pdb
-*.sln
-.vs/
-.idea/
-.vscode/
 
-# === Assets (Content) Ignores ===
-# 모든 에셋과 맵 파일을 무시합니다.
-Content/**/*.uasset
-Content/**/*.umap
-
-# 만약 Content 폴더 자체를 통째로 무시하고 싶다면 아래 주석을 해제하세요.
-# Content/
-
-# === Executables & Libraries ===
-*.exe
-*.dll
-*.target
-*.modules
-*.app
-*.ips
+# Compiled Dynamic libraries
 *.so
 *.dylib
+*.dll
 
-# === External/Third Party ===
-# 플러그인 빌드 결과물 등
-Plugins/*/Binaries/
-Plugins/*/Intermediate/
+# Fortran module files
+*.mod
+*.smod
 
-# === System Files ===
-.DS_Store
-Thumbs.db
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# debug information files
+*.dwo
