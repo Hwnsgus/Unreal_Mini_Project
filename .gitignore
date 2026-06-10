@@ -739,6 +739,46 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+#############################################
+# Unreal Engine Custom Ignore Rules
+#############################################
+
+# 언리얼 빌드 결과물 및 바이너리 파일 무시
+Binaries/
+Plugins/*/Binaries/
+
+# 중간 생성 폴더 및 빌드 캐시 무시 (가장 많은 용량/파일 차지)
+Intermediate/
+Plugins/*/Intermediate/
+DerivedDataCache/
+
+# 로컬 저장 데이터, 자동저장, 설정 및 로그 파일 무시
+Saved/
+Content/
+
+
+# 언리얼 오토스크린샷 및 기타 미디어 데이터 무시
+Saved/AutoScreenshot.png
+
+# 빌드 구성 파일 및 소스 컨트롤 임시 파일 무시
+UnrealBuildTool/
+DerivedDataCache/
+
+# IDE(Visual Studio, Rider, VS Code) 프로젝트 및 설정 파일 무시
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.opendb
+.vs/
+.idea/
+.vscode/
+
+# Claude 및 기타 AI 툴 작업 트리 임시 파일 무시
+.claude/
+
+
 ### VisualStudio Patch ###
 # Additional files built by Visual Studio
 
