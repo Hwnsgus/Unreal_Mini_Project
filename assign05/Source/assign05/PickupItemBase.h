@@ -39,5 +39,8 @@ protected:
 	int32 ScoreValue = 10;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
+	bool bCountsTowardWaveGoal = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
 	bool bDestroyOnPickup = true;
 };

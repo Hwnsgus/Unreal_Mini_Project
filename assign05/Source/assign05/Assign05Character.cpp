@@ -39,6 +39,7 @@ void AAssign05Character::BeginPlay()
 {
 	Super::BeginPlay();
 
+	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
 	ApplyMovementSpeed();
 }
 
@@ -108,4 +109,38 @@ void AAssign05Character::ApplyMovementSpeed()
 	GetCharacterMovement()->MaxWalkSpeed = bWantsToSprint ? SprintSpeed : WalkSpeed;
 	GetCharacterMovement()->JumpZVelocity = JumpVelocity;
 	GetCharacterMovement()->AirControl = AirControlAmount;
+}
+
+float AAssign05Character::GetHealth() const
+{
+	return Health;
+}
+
+void AAssign05Character::AddHealth(float Amount)
+{
+	Health = FMath::Clamp(Health + Amount, 0.0f, MaxHealth);
+	UE_LOG(LogTemp, Warning, TEXT("Health: %f"), Health);
+}
+
+float AAssign05Character::TakeDamage(float DamageAmount,
+		struct FDamageEvent const& DamageEvent,
+		AController* EventInstigator,AActor* DamageCauser)
+{
+	Super::TakeDamage(DamageAmount,DamageEvent,EventInstigator,DamageCauser);
+	
+	const float ActualDamage = FMath::Max(0.0f, DamageAmount);
+	Health = FMath::Clamp(Health - ActualDamage,0.0f, MaxHealth);
+	UE_LOG(LogTemp, Warning, TEXT("Health: %f"), Health);
+	
+	if (Health <= 0.0f)
+	{
+		OnDeath();
+	}
+	
+	return ActualDamage;
+}
+
+void AAssign05Character::OnDeath()
+{
+	//게임 종료 로직
 }

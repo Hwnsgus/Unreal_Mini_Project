@@ -50,9 +50,12 @@ void APickupItemBase::OnPickupOverlap(UPrimitiveComponent* OverlappedComponent, 
 
 	ApplyPickupEffect(PickingPawn);
 
-	if (AAssign05GameMode* GameMode = Cast<AAssign05GameMode>(UGameplayStatics::GetGameMode(this)))
+	if (bCountsTowardWaveGoal)
 	{
-		GameMode->NotifyPickupCollected(ScoreValue);
+		if (AAssign05GameMode* GameMode = Cast<AAssign05GameMode>(UGameplayStatics::GetGameMode(this)))
+		{
+			GameMode->NotifyPickupCollected(ScoreValue);
+		}
 	}
 
 	if (bDestroyOnPickup)

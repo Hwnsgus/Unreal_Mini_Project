@@ -7,6 +7,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "Assign05GameMode.generated.h"
 
+class UAssign05StageTransitionWidget;
+
 UCLASS()
 class ASSIGN05_API AAssign05GameMode : public AGameModeBase
 {
@@ -35,6 +37,8 @@ protected:
 	void AdvanceToNextWaveOrLevel();
 	void SpawnItemsForCurrentWave(const FAssign05WaveConfig& WaveConfig);
 	void ClearExistingWavePickups();
+	void ShowStageTransitionUI(const FAssign05LevelWaveConfig& LevelConfig, const FAssign05WaveConfig& WaveConfig);
+	void ShowGameClearUI();
 	FText BuildDefaultWaveMessage(const FAssign05WaveConfig& WaveConfig) const;
 
 protected:
@@ -50,6 +54,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
 	bool bTravelToOptionalMapNames = false;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UAssign05StageTransitionWidget> StageTransitionWidgetClass;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Wave")
 	int32 CurrentLevelIndex = 0;
 
@@ -62,4 +69,7 @@ protected:
 private:
 	FTimerHandle WaveTimerHandle;
 	FTimerHandle NextWaveTimerHandle;
+
+	UPROPERTY()
+	TObjectPtr<UAssign05StageTransitionWidget> ActiveStageTransitionWidget;
 };

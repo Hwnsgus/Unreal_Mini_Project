@@ -22,9 +22,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool IsSprinting() const { return bWantsToSprint; }
 
+	float GetHealth() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "Health")
+	void AddHealth(float Amount);
+	
 protected:
 	virtual void BeginPlay() override;
-
+	
 	void MoveForward(float Value);
 	void MoveRight(float Value);
 	void Turn(float Value);
@@ -33,6 +38,18 @@ protected:
 	void StopSprint();
 
 	void ApplyMovementSpeed();
+	
+	void OnDeath();
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float MaxHealth = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
+	float Health = 100.0f;
+
+	virtual float TakeDamage(float DamageAmount,
+		struct FDamageEvent const& DamageEvent,
+		AController* EventInstigator,AActor* DamageCauser) override;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")

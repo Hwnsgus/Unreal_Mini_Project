@@ -3,7 +3,9 @@
 #include "SpawnVolume.h"
 
 #include "Components/BoxComponent.h"
+#include "HealingItem.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "MineItem.h"
 #include "PickupItemBase.h"
 
 ASpawnVolume::ASpawnVolume()
@@ -17,6 +19,8 @@ ASpawnVolume::ASpawnVolume()
 	SpawnBounds->ShapeColor = FColor::Green;
 
 	SpawnableClasses.Add(APickupItemBase::StaticClass());
+	SpawnableClasses.Add(AHealingItem::StaticClass());
+	SpawnableClasses.Add(AMineItem::StaticClass());
 }
 
 void ASpawnVolume::SpawnWaveItems(int32 SpawnCount)

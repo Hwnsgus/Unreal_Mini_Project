@@ -4,6 +4,7 @@
 
 #include "Assign05Character.h"
 #include "Assign05GameState.h"
+#include "Assign05StageTransitionWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "PickupItemBase.h"
 #include "SpawnVolume.h"
@@ -12,6 +13,7 @@ AAssign05GameMode::AAssign05GameMode()
 {
 	DefaultPawnClass = AAssign05Character::StaticClass();
 	GameStateClass = AAssign05GameState::StaticClass();
+	StageTransitionWidgetClass = UAssign05StageTransitionWidget::StaticClass();
 	BuildDefaultWaveTable();
 }
 
@@ -51,6 +53,7 @@ void AAssign05GameMode::StartCurrentWave()
 	const FAssign05WaveConfig& WaveConfig = LevelConfig.Waves[CurrentWaveIndex];
 	CurrentWaveCollectedItems = 0;
 	ClearExistingWavePickups();
+	ShowStageTransitionUI(LevelConfig, WaveConfig);
 
 	if (AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
 	{
@@ -61,10 +64,6 @@ void AAssign05GameMode::StartCurrentWave()
 
 	const FString DebugMessage = FString::Printf(TEXT("Level %d - Wave %d Start!"), LevelConfig.LevelNumber, WaveConfig.WaveNumber);
 	UE_LOG(LogTemp, Log, TEXT("%s"), *DebugMessage);
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Cyan, DebugMessage);
-	}
 
 	SpawnItemsForCurrentWave(WaveConfig);
 	GetWorldTimerManager().SetTimer(WaveTimerHandle, this, &AAssign05GameMode::TickWaveTimer, 1.0f, true);
@@ -147,10 +146,12 @@ void AAssign05GameMode::AdvanceToNextWaveOrLevel()
 
 	if (!LevelConfigs.IsValidIndex(CurrentLevelIndex))
 	{
+		ClearExistingWavePickups();
 		if (AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
 		{
 			AssignGameState->BroadcastWaveMessage(FText::FromString(TEXT("All levels cleared!")));
 		}
+		ShowGameClearUI();
 		return;
 	}
 
@@ -202,6 +203,68 @@ void AAssign05GameMode::ClearExistingWavePickups()
 			Pickup->Destroy();
 		}
 	}
+}
+
+void AAssign05GameMode::ShowStageTransitionUI(const FAssign05LevelWaveConfig& LevelConfig, const FAssign05WaveConfig& WaveConfig)
+{
+	if (StageTransitionWidgetClass == nullptr)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	if (ActiveStageTransitionWidget)
+	{
+		ActiveStageTransitionWidget->RemoveFromParent();
+	}
+
+	ActiveStageTransitionWidget = CreateWidget<UAssign05StageTransitionWidget>(PlayerController, StageTransitionWidgetClass);
+	if (ActiveStageTransitionWidget == nullptr)
+	{
+		return;
+	}
+
+	ActiveStageTransitionWidget->AddToViewport(80);
+	ActiveStageTransitionWidget->ShowStageTransition(LevelConfig.LevelNumber, WaveConfig.WaveNumber, WaveConfig.TimeLimit, WaveConfig.ItemSpawnCount, WaveConfig.RequiredPickupCount);
+}
+
+void AAssign05GameMode::ShowGameClearUI()
+{
+	if (StageTransitionWidgetClass == nullptr)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	if (ActiveStageTransitionWidget)
+	{
+		ActiveStageTransitionWidget->RemoveFromParent();
+	}
+
+	ActiveStageTransitionWidget = CreateWidget<UAssign05StageTransitionWidget>(PlayerController, StageTransitionWidgetClass);
+	if (ActiveStageTransitionWidget == nullptr)
+	{
+		return;
+	}
+
+	int32 FinalScore = 0;
+	if (const AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
+	{
+		FinalScore = AssignGameState->GetScore();
+	}
+
+	ActiveStageTransitionWidget->AddToViewport(90);
+	ActiveStageTransitionWidget->ShowGameClear(FinalScore);
 }
 
 FText AAssign05GameMode::BuildDefaultWaveMessage(const FAssign05WaveConfig& WaveConfig) const
