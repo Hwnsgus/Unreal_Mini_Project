@@ -21,6 +21,11 @@ void UAssign05StageTransitionWidget::NativeConstruct()
 
 	BuildWidgetTree();
 	CacheDesignerWidgets();
+	if (!HasDisplayWidgets())
+	{
+		BuildDefaultWidgetTree();
+		CacheDesignerWidgets();
+	}
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 	SetRenderOpacity(0.0f);
 }
@@ -64,6 +69,11 @@ void UAssign05StageTransitionWidget::ShowStageTransition(int32 LevelNumber, int3
 {
 	BuildWidgetTree();
 	CacheDesignerWidgets();
+	if (!HasDisplayWidgets())
+	{
+		BuildDefaultWidgetTree();
+		CacheDesignerWidgets();
+	}
 
 	const FLinearColor StageColor = GetStageColor(LevelNumber);
 
@@ -109,6 +119,11 @@ void UAssign05StageTransitionWidget::ShowGameClear(int32 FinalScore)
 {
 	BuildWidgetTree();
 	CacheDesignerWidgets();
+	if (!HasDisplayWidgets())
+	{
+		BuildDefaultWidgetTree();
+		CacheDesignerWidgets();
+	}
 
 	const FLinearColor ClearColor(1.0f, 0.86f, 0.25f, 1.0f);
 
@@ -147,10 +162,32 @@ void UAssign05StageTransitionWidget::ShowGameClear(int32 FinalScore)
 
 void UAssign05StageTransitionWidget::BuildWidgetTree()
 {
-	if (WidgetTree == nullptr || WidgetTree->RootWidget != nullptr)
+	if (WidgetTree == nullptr)
 	{
 		return;
 	}
+
+	if (WidgetTree->RootWidget == nullptr)
+	{
+		BuildDefaultWidgetTree();
+	}
+}
+
+void UAssign05StageTransitionWidget::BuildDefaultWidgetTree()
+{
+	if (WidgetTree == nullptr)
+	{
+		return;
+	}
+
+	CardBorder = nullptr;
+	HeaderText = nullptr;
+	HeaderTextBox = nullptr;
+	StageText = nullptr;
+	StageTextBox = nullptr;
+	DetailText = nullptr;
+	DetailTextBox = nullptr;
+	AccentBar = nullptr;
 
 	UCanvasPanel* RootCanvas = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("RootCanvas"));
 	WidgetTree->RootWidget = RootCanvas;
@@ -204,6 +241,11 @@ void UAssign05StageTransitionWidget::BuildWidgetTree()
 	{
 		BarSlot->SetPadding(FMargin(10.0f, 28.0f, 10.0f, 0.0f));
 	}
+}
+
+bool UAssign05StageTransitionWidget::HasDisplayWidgets() const
+{
+	return HeaderText != nullptr || HeaderTextBox != nullptr || StageText != nullptr || StageTextBox != nullptr || DetailText != nullptr || DetailTextBox != nullptr;
 }
 
 void UAssign05StageTransitionWidget::CacheDesignerWidgets()

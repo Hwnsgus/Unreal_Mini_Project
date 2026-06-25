@@ -29,7 +29,9 @@ protected:
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void BuildWidgetTree();
+	void BuildDefaultWidgetTree();
 	void CacheDesignerWidgets();
+	bool HasDisplayWidgets() const;
 	void SetDisplayText(UTextBlock* TextBlock, UEditableTextBox* TextBox, const FText& Text) const;
 	void SetDisplayTextColor(UTextBlock* TextBlock, UEditableTextBox* TextBox, const FLinearColor& Color) const;
 	FLinearColor GetStageColor(int32 LevelNumber) const;
