@@ -20,7 +20,9 @@ def create_blueprint(asset_path, asset_name, parent_class):
 
 def main():
     path = "/Game/Assign05/Blueprints"
+    ui_path = "/Game/Assign05/UI"
     ensure_path(path)
+    ensure_path(ui_path)
 
     character_class = unreal.load_class(None, "/Script/assign05.Assign05Character")
     platform_class = unreal.load_class(None, "/Script/assign05.MovingPlatform")
@@ -38,11 +40,15 @@ def main():
     pickup_item_bp = create_blueprint(path, "BP_PickupItemBase", pickup_item_class)
     healing_item_bp = create_blueprint(path, "BP_HealingItem", healing_item_class)
     mine_item_bp = create_blueprint(path, "BP_MineItem", mine_item_class)
-    stage_transition_bp = create_blueprint(path, "WBP_StageTransition", stage_transition_class)
+    stage_transition_bp = create_blueprint(ui_path, "WBP_StageTransition", stage_transition_class)
 
     if game_mode_bp and stage_transition_bp:
         game_mode_cdo = unreal.get_default_object(game_mode_bp.generated_class())
         game_mode_cdo.set_editor_property("stage_transition_widget_class", stage_transition_bp.generated_class())
+        try:
+            game_mode_cdo.set_editor_property("b_travel_to_optional_map_names", True)
+        except Exception as exc:
+            unreal.log_warning(f"Could not set map travel option on BP_Assign05GameMode: {exc}")
 
     if spawn_volume_bp and healing_item_bp and mine_item_bp:
         spawn_volume_cdo = unreal.get_default_object(spawn_volume_bp.generated_class())

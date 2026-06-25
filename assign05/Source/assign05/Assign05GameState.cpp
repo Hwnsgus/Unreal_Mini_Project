@@ -25,6 +25,12 @@ void AAssign05GameState::AddScore(int32 Amount)
 	OnWaveStateChanged.Broadcast();
 }
 
+void AAssign05GameState::SetScore(int32 NewScore)
+{
+	Score = NewScore;
+	OnWaveStateChanged.Broadcast();
+}
+
 void AAssign05GameState::AddPickupProgress(int32 Amount)
 {
 	PickupProgress += Amount;

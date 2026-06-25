@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Assign05WaveTypes.generated.h"
 
+class UWorld;
+
 USTRUCT(BlueprintType)
 struct FAssign05WaveConfig
 {
@@ -22,6 +24,9 @@ struct FAssign05WaveConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave", meta = (ClampMin = "0"))
 	int32 RequiredPickupCount = 3;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Map")
+	TSoftObjectPtr<UWorld> OptionalMap; //TSoftObjectPtr 
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
 	FText StartMessage;
 };
@@ -34,8 +39,8 @@ struct FAssign05LevelWaveConfig
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
 	int32 LevelNumber = 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
-	FName OptionalMapName;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level|Map")
+	TSoftObjectPtr<UWorld> OptionalMap;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Level")
 	TArray<FAssign05WaveConfig> Waves;

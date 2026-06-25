@@ -3,6 +3,7 @@
 #include "Assign05GameMode.h"
 
 #include "Assign05Character.h"
+#include "Assign05GameInstance.h"
 #include "Assign05GameState.h"
 #include "Assign05StageTransitionWidget.h"
 #include "Kismet/GameplayStatics.h"
@@ -33,9 +34,25 @@ void AAssign05GameMode::StartGameFlow()
 	{
 		BuildDefaultWaveTable();
 	}
+	EnsureDefaultMapAssignments();
 
 	CurrentLevelIndex = 0;
 	CurrentWaveIndex = 0;
+	CarriedScore = 0;
+
+	if (UAssign05GameInstance* AssignGameInstance = GetGameInstance<UAssign05GameInstance>())
+	{
+		int32 SavedLevelIndex = 0;
+		int32 SavedWaveIndex = 0;
+		int32 SavedScore = 0;
+		if (AssignGameInstance->ConsumeWaveProgress(SavedLevelIndex, SavedWaveIndex, SavedScore))
+		{
+			CurrentLevelIndex = SavedLevelIndex;
+			CurrentWaveIndex = SavedWaveIndex;
+			CarriedScore = SavedScore;
+		}
+	}
+
 	StartCurrentWave();
 }
 
@@ -58,6 +75,7 @@ void AAssign05GameMode::StartCurrentWave()
 	if (AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
 	{
 		AssignGameState->SetWaveState(LevelConfig.LevelNumber, WaveConfig.WaveNumber, WaveConfig.TimeLimit, WaveConfig.RequiredPickupCount);
+		AssignGameState->SetScore(CarriedScore);
 		const FText Message = WaveConfig.StartMessage.IsEmpty() ? BuildDefaultWaveMessage(WaveConfig) : WaveConfig.StartMessage;
 		AssignGameState->BroadcastWaveMessage(Message);
 	}
@@ -82,6 +100,7 @@ void AAssign05GameMode::NotifyPickupCollected(int32 ScoreValue)
 	if (AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
 	{
 		AssignGameState->AddScore(ScoreValue);
+		CarriedScore = AssignGameState->GetScore();
 		AssignGameState->AddPickupProgress(1);
 
 		if (AssignGameState->GetTargetPickups() > 0 && AssignGameState->GetPickupProgress() >= AssignGameState->GetTargetPickups())
@@ -99,6 +118,18 @@ void AAssign05GameMode::BuildDefaultWaveTable()
 	{
 		FAssign05LevelWaveConfig LevelConfig;
 		LevelConfig.LevelNumber = LevelNumber;
+		if (LevelNumber == 1)
+		{
+			LevelConfig.OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round1.Round1")));
+		}
+		else if (LevelNumber == 2)
+		{
+			LevelConfig.OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round2.Round2")));
+		}
+		else if (LevelNumber == 3)
+		{
+			LevelConfig.OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round3.Round3")));
+		}
 
 		for (int32 WaveNumber = 1; WaveNumber <= 3; ++WaveNumber)
 		{
@@ -111,6 +142,30 @@ void AAssign05GameMode::BuildDefaultWaveTable()
 		}
 
 		LevelConfigs.Add(LevelConfig);
+	}
+}
+
+void AAssign05GameMode::EnsureDefaultMapAssignments()
+{
+	for (int32 Index = 0; Index < LevelConfigs.Num(); ++Index)
+	{
+		if (!LevelConfigs[Index].OptionalMap.IsNull())
+		{
+			continue;
+		}
+
+		if (Index == 0)
+		{
+			LevelConfigs[Index].OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round1.Round1")));
+		}
+		else if (Index == 1)
+		{
+			LevelConfigs[Index].OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round2.Round2")));
+		}
+		else if (Index == 2)
+		{
+			LevelConfigs[Index].OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round3.Round3")));
+		}
 	}
 }
 
@@ -137,6 +192,11 @@ void AAssign05GameMode::AdvanceToNextWaveOrLevel()
 
 	if (LevelConfigs.IsValidIndex(CurrentLevelIndex) && LevelConfigs[CurrentLevelIndex].Waves.IsValidIndex(CurrentWaveIndex))
 	{
+		if (TryTravelToWaveMap(CurrentLevelIndex, CurrentWaveIndex))
+		{
+			return;
+		}
+
 		GetWorldTimerManager().SetTimer(NextWaveTimerHandle, this, &AAssign05GameMode::StartCurrentWave, TimeBetweenWaves, false);
 		return;
 	}
@@ -155,14 +215,58 @@ void AAssign05GameMode::AdvanceToNextWaveOrLevel()
 		return;
 	}
 
-	const FAssign05LevelWaveConfig& NextLevelConfig = LevelConfigs[CurrentLevelIndex];
-	if (bTravelToOptionalMapNames && !NextLevelConfig.OptionalMapName.IsNone())
+	if (TryTravelToWaveMap(CurrentLevelIndex, CurrentWaveIndex))
 	{
-		UGameplayStatics::OpenLevel(this, NextLevelConfig.OptionalMapName);
 		return;
 	}
 
 	GetWorldTimerManager().SetTimer(NextWaveTimerHandle, this, &AAssign05GameMode::StartCurrentWave, TimeBetweenWaves, false);
+}
+
+bool AAssign05GameMode::TryTravelToWaveMap(int32 NextLevelIndex, int32 NextWaveIndex)
+{
+	if (!bTravelToOptionalMapNames)
+	{
+		return false;
+	}
+
+	const FName TravelMapName = GetTravelMapName(NextLevelIndex, NextWaveIndex);
+	if (TravelMapName.IsNone())
+	{
+		return false;
+	}
+
+	if (UAssign05GameInstance* AssignGameInstance = GetGameInstance<UAssign05GameInstance>())
+	{
+		AssignGameInstance->SaveWaveProgress(NextLevelIndex, NextWaveIndex, CarriedScore);
+	}
+
+	UGameplayStatics::OpenLevel(this, TravelMapName);
+	return true;
+}
+
+FName AAssign05GameMode::GetTravelMapName(int32 NextLevelIndex, int32 NextWaveIndex) const
+{
+	if (!LevelConfigs.IsValidIndex(NextLevelIndex) || !LevelConfigs[NextLevelIndex].Waves.IsValidIndex(NextWaveIndex))
+	{
+		return NAME_None;
+	}
+
+	const FAssign05LevelWaveConfig& LevelConfig = LevelConfigs[NextLevelIndex];
+	const FAssign05WaveConfig& WaveConfig = LevelConfig.Waves[NextWaveIndex];
+
+	TSoftObjectPtr<UWorld> MapToLoad = WaveConfig.OptionalMap;
+	if (MapToLoad.IsNull() && NextWaveIndex == 0)
+	{
+		MapToLoad = LevelConfig.OptionalMap;
+	}
+
+	if (MapToLoad.IsNull())
+	{
+		return NAME_None;
+	}
+
+	return FName(*MapToLoad.ToSoftObjectPath().GetLongPackageName());
 }
 
 void AAssign05GameMode::SpawnItemsForCurrentWave(const FAssign05WaveConfig& WaveConfig)

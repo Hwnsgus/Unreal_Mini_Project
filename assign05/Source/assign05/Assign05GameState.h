@@ -25,6 +25,9 @@ public:
 	void AddScore(int32 Amount);
 
 	UFUNCTION(BlueprintCallable, Category = "Wave")
+	void SetScore(int32 NewScore);
+
+	UFUNCTION(BlueprintCallable, Category = "Wave")
 	void AddPickupProgress(int32 Amount = 1);
 
 	UFUNCTION(BlueprintCallable, Category = "Wave")

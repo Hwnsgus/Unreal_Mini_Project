@@ -33,8 +33,11 @@ public:
 
 protected:
 	void BuildDefaultWaveTable();
+	void EnsureDefaultMapAssignments();
 	void TickWaveTimer();
 	void AdvanceToNextWaveOrLevel();
+	bool TryTravelToWaveMap(int32 NextLevelIndex, int32 NextWaveIndex);
+	FName GetTravelMapName(int32 NextLevelIndex, int32 NextWaveIndex) const;
 	void SpawnItemsForCurrentWave(const FAssign05WaveConfig& WaveConfig);
 	void ClearExistingWavePickups();
 	void ShowStageTransitionUI(const FAssign05LevelWaveConfig& LevelConfig, const FAssign05WaveConfig& WaveConfig);
@@ -52,7 +55,7 @@ protected:
 	bool bAutoStartGameFlow = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
-	bool bTravelToOptionalMapNames = false;
+	bool bTravelToOptionalMapNames = true;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UAssign05StageTransitionWidget> StageTransitionWidgetClass;
@@ -65,6 +68,9 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Wave")
 	int32 CurrentWaveCollectedItems = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Wave")
+	int32 CarriedScore = 0;
 
 private:
 	FTimerHandle WaveTimerHandle;
