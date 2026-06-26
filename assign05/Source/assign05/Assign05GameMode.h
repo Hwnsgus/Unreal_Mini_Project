@@ -8,6 +8,9 @@
 #include "Assign05GameMode.generated.h"
 
 class UAssign05StageTransitionWidget;
+class UAssign05HUDWidget;
+class UButton;
+class UUserWidget;
 
 UCLASS()
 class ASSIGN05_API AAssign05GameMode : public AGameModeBase
@@ -31,18 +34,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Wave")
 	void NotifyPickupCollected(int32 ScoreValue);
 
+	UFUNCTION(BlueprintCallable, Category = "Wave")
+	void RestartGameFromFirstRound();
+
 protected:
 	void BuildDefaultWaveTable();
 	void EnsureDefaultMapAssignments();
+	void NormalizeLevelConfigsForSingleWaveRounds();
 	void TickWaveTimer();
 	void AdvanceToNextWaveOrLevel();
 	bool TryTravelToWaveMap(int32 NextLevelIndex, int32 NextWaveIndex);
 	FName GetTravelMapName(int32 NextLevelIndex, int32 NextWaveIndex) const;
 	void SpawnItemsForCurrentWave(const FAssign05WaveConfig& WaveConfig);
 	void ClearExistingWavePickups();
+	void ShowHUD();
 	void ShowStageTransitionUI(const FAssign05LevelWaveConfig& LevelConfig, const FAssign05WaveConfig& WaveConfig);
+	void ShowGameOverUI();
 	void ShowGameClearUI();
+	void BindEndGameRetryButton(UUserWidget* EndGameWidget);
+	UButton* FindRetryButton(UUserWidget* EndGameWidget) const;
 	FText BuildDefaultWaveMessage(const FAssign05WaveConfig& WaveConfig) const;
+
+	UFUNCTION()
+	void HandleRetryClicked();
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
@@ -59,6 +73,15 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<UAssign05StageTransitionWidget> StageTransitionWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UAssign05HUDWidget> HUDWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<UUserWidget> EndGameWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Map")
+	TSoftObjectPtr<UWorld> RestartMap;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Wave")
 	int32 CurrentLevelIndex = 0;
@@ -78,4 +101,10 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UAssign05StageTransitionWidget> ActiveStageTransitionWidget;
+
+	UPROPERTY()
+	TObjectPtr<UAssign05HUDWidget> ActiveHUDWidget;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> ActiveEndGameWidget;
 };

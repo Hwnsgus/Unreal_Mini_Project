@@ -18,6 +18,7 @@ ASpawnVolume::ASpawnVolume()
 	SpawnBounds->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SpawnBounds->ShapeColor = FColor::Green;
 
+	RequiredPickupClass = APickupItemBase::StaticClass();
 	SpawnableClasses.Add(APickupItemBase::StaticClass());
 	SpawnableClasses.Add(AHealingItem::StaticClass());
 	SpawnableClasses.Add(AMineItem::StaticClass());
@@ -45,6 +46,32 @@ void ASpawnVolume::SpawnWaveItems(int32 SpawnCount)
 			continue;
 		}
 
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+		World->SpawnActor<AActor>(SpawnClass, GetRandomPointInVolume(), FRotator::ZeroRotator, SpawnParams);
+	}
+}
+
+void ASpawnVolume::SpawnRequiredPickupItems(int32 SpawnCount)
+{
+	SpawnItemsOfClass(RequiredPickupClass, SpawnCount);
+}
+
+void ASpawnVolume::SpawnItemsOfClass(TSubclassOf<AActor> SpawnClass, int32 SpawnCount)
+{
+	if (SpawnCount <= 0 || SpawnClass == nullptr)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
+
+	for (int32 Index = 0; Index < SpawnCount; ++Index)
+	{
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 		World->SpawnActor<AActor>(SpawnClass, GetRandomPointInVolume(), FRotator::ZeroRotator, SpawnParams);

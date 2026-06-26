@@ -5,22 +5,44 @@
 #include "Assign05Character.h"
 #include "Assign05GameInstance.h"
 #include "Assign05GameState.h"
+#include "Assign05HUDWidget.h"
 #include "Assign05StageTransitionWidget.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/Button.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "PickupItemBase.h"
 #include "SpawnVolume.h"
+#include "UObject/ConstructorHelpers.h"
 
 AAssign05GameMode::AAssign05GameMode()
 {
 	DefaultPawnClass = AAssign05Character::StaticClass();
 	GameStateClass = AAssign05GameState::StaticClass();
+	HUDWidgetClass = UAssign05HUDWidget::StaticClass();
 	StageTransitionWidgetClass = UAssign05StageTransitionWidget::StaticClass();
+	RestartMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round1.Round1")));
+
+	static ConstructorHelpers::FClassFinder<UAssign05HUDWidget> HUDWidgetFinder(TEXT("/Game/Assign05/UI/WBP_HUD"));
+	if (HUDWidgetFinder.Succeeded())
+	{
+		HUDWidgetClass = HUDWidgetFinder.Class;
+	}
+
+	static ConstructorHelpers::FClassFinder<UUserWidget> EndGameWidgetFinder(TEXT("/Game/Assign05/UI/WBP_EndGame"));
+	if (EndGameWidgetFinder.Succeeded())
+	{
+		EndGameWidgetClass = EndGameWidgetFinder.Class;
+	}
+
 	BuildDefaultWaveTable();
 }
 
 void AAssign05GameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
+	ShowHUD();
 
 	if (bAutoStartGameFlow)
 	{
@@ -35,6 +57,7 @@ void AAssign05GameMode::StartGameFlow()
 		BuildDefaultWaveTable();
 	}
 	EnsureDefaultMapAssignments();
+	NormalizeLevelConfigsForSingleWaveRounds();
 
 	CurrentLevelIndex = 0;
 	CurrentWaveIndex = 0;
@@ -47,8 +70,8 @@ void AAssign05GameMode::StartGameFlow()
 		int32 SavedScore = 0;
 		if (AssignGameInstance->ConsumeWaveProgress(SavedLevelIndex, SavedWaveIndex, SavedScore))
 		{
-			CurrentLevelIndex = SavedLevelIndex;
-			CurrentWaveIndex = SavedWaveIndex;
+			CurrentLevelIndex = FMath::Clamp(SavedLevelIndex, 0, FMath::Max(0, LevelConfigs.Num() - 1));
+			CurrentWaveIndex = 0;
 			CarriedScore = SavedScore;
 		}
 	}
@@ -110,6 +133,46 @@ void AAssign05GameMode::NotifyPickupCollected(int32 ScoreValue)
 	}
 }
 
+void AAssign05GameMode::RestartGameFromFirstRound()
+{
+	GetWorldTimerManager().ClearTimer(WaveTimerHandle);
+	GetWorldTimerManager().ClearTimer(NextWaveTimerHandle);
+	ClearExistingWavePickups();
+
+	if (UAssign05GameInstance* AssignGameInstance = GetGameInstance<UAssign05GameInstance>())
+	{
+		AssignGameInstance->ResetWaveProgress();
+	}
+
+	if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0))
+	{
+		PlayerController->bShowMouseCursor = false;
+		PlayerController->SetInputMode(FInputModeGameOnly());
+	}
+
+	FName MapToLoad = NAME_None;
+	if (!RestartMap.IsNull())
+	{
+		MapToLoad = FName(*RestartMap.ToSoftObjectPath().GetLongPackageName());
+	}
+
+	if (MapToLoad.IsNone())
+	{
+		EnsureDefaultMapAssignments();
+		if (LevelConfigs.IsValidIndex(0) && !LevelConfigs[0].OptionalMap.IsNull())
+		{
+			MapToLoad = FName(*LevelConfigs[0].OptionalMap.ToSoftObjectPath().GetLongPackageName());
+		}
+	}
+
+	if (MapToLoad.IsNone())
+	{
+		MapToLoad = FName(TEXT("/Game/Assign05/Maps/Round1"));
+	}
+
+	UGameplayStatics::OpenLevel(this, MapToLoad);
+}
+
 void AAssign05GameMode::BuildDefaultWaveTable()
 {
 	LevelConfigs.Empty();
@@ -131,15 +194,12 @@ void AAssign05GameMode::BuildDefaultWaveTable()
 			LevelConfig.OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round3.Round3")));
 		}
 
-		for (int32 WaveNumber = 1; WaveNumber <= 3; ++WaveNumber)
-		{
-			FAssign05WaveConfig WaveConfig;
-			WaveConfig.WaveNumber = WaveNumber;
-			WaveConfig.TimeLimit = 35.0f - (WaveNumber * 3.0f) - (LevelNumber * 2.0f);
-			WaveConfig.ItemSpawnCount = 4 + WaveNumber + LevelNumber;
-			WaveConfig.RequiredPickupCount = FMath::Max(2, WaveConfig.ItemSpawnCount - 2);
-			LevelConfig.Waves.Add(WaveConfig);
-		}
+		FAssign05WaveConfig WaveConfig;
+		WaveConfig.WaveNumber = 1;
+		WaveConfig.TimeLimit = 30.0f;
+		WaveConfig.ItemSpawnCount = 5 + LevelNumber;
+		WaveConfig.RequiredPickupCount = FMath::Max(2, WaveConfig.ItemSpawnCount - 2);
+		LevelConfig.Waves.Add(WaveConfig);
 
 		LevelConfigs.Add(LevelConfig);
 	}
@@ -169,6 +229,36 @@ void AAssign05GameMode::EnsureDefaultMapAssignments()
 	}
 }
 
+void AAssign05GameMode::NormalizeLevelConfigsForSingleWaveRounds()
+{
+	for (int32 Index = 0; Index < LevelConfigs.Num(); ++Index)
+	{
+		FAssign05LevelWaveConfig& LevelConfig = LevelConfigs[Index];
+		LevelConfig.LevelNumber = Index + 1;
+
+		if (LevelConfig.Waves.Num() == 0)
+		{
+			FAssign05WaveConfig DefaultWave;
+			DefaultWave.WaveNumber = 1;
+			DefaultWave.TimeLimit = 30.0f;
+			DefaultWave.ItemSpawnCount = 6 + Index;
+			DefaultWave.RequiredPickupCount = FMath::Max(2, DefaultWave.ItemSpawnCount - 2);
+			LevelConfig.Waves.Add(DefaultWave);
+		}
+		else if (LevelConfig.Waves.Num() > 1)
+		{
+			LevelConfig.Waves.SetNum(1);
+		}
+
+		FAssign05WaveConfig& WaveConfig = LevelConfig.Waves[0];
+		WaveConfig.WaveNumber = 1;
+		WaveConfig.TimeLimit = 30.0f;
+		WaveConfig.OptionalMap.Reset();
+		WaveConfig.ItemSpawnCount = FMath::Max(1, WaveConfig.ItemSpawnCount);
+		WaveConfig.RequiredPickupCount = FMath::Clamp(WaveConfig.RequiredPickupCount, 1, WaveConfig.ItemSpawnCount);
+	}
+}
+
 void AAssign05GameMode::TickWaveTimer()
 {
 	AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>();
@@ -182,7 +272,7 @@ void AAssign05GameMode::TickWaveTimer()
 
 	if (NewTimeRemaining <= 0.0f)
 	{
-		EndCurrentWave();
+		ShowGameOverUI();
 	}
 }
 
@@ -279,20 +369,36 @@ void AAssign05GameMode::SpawnItemsForCurrentWave(const FAssign05WaveConfig& Wave
 		return;
 	}
 
-	int32 RemainingSpawns = WaveConfig.ItemSpawnCount;
-	for (int32 Index = 0; Index < FoundVolumes.Num() && RemainingSpawns > 0; ++Index)
+	auto SpawnAcrossVolumes = [&FoundVolumes](int32 SpawnCount, bool bRequiredPickup)
 	{
-		ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[Index]);
-		if (SpawnVolume == nullptr)
+		int32 RemainingSpawns = SpawnCount;
+		for (int32 Index = 0; Index < FoundVolumes.Num() && RemainingSpawns > 0; ++Index)
 		{
-			continue;
-		}
+			ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[Index]);
+			if (SpawnVolume == nullptr)
+			{
+				continue;
+			}
 
-		const int32 VolumesLeft = FoundVolumes.Num() - Index;
-		const int32 SpawnCountForVolume = FMath::CeilToInt(static_cast<float>(RemainingSpawns) / static_cast<float>(VolumesLeft));
-		SpawnVolume->SpawnWaveItems(SpawnCountForVolume);
-		RemainingSpawns -= SpawnCountForVolume;
-	}
+			const int32 VolumesLeft = FoundVolumes.Num() - Index;
+			const int32 SpawnCountForVolume = FMath::CeilToInt(static_cast<float>(RemainingSpawns) / static_cast<float>(VolumesLeft));
+			if (bRequiredPickup)
+			{
+				SpawnVolume->SpawnRequiredPickupItems(SpawnCountForVolume);
+			}
+			else
+			{
+				SpawnVolume->SpawnWaveItems(SpawnCountForVolume);
+			}
+			RemainingSpawns -= SpawnCountForVolume;
+		}
+	};
+
+	const int32 RequiredPickupSpawnCount = FMath::Clamp(WaveConfig.RequiredPickupCount, 0, WaveConfig.ItemSpawnCount);
+	const int32 BonusSpawnCount = FMath::Max(0, WaveConfig.ItemSpawnCount - RequiredPickupSpawnCount);
+
+	SpawnAcrossVolumes(RequiredPickupSpawnCount, true);
+	SpawnAcrossVolumes(BonusSpawnCount, false);
 }
 
 void AAssign05GameMode::ClearExistingWavePickups()
@@ -307,6 +413,33 @@ void AAssign05GameMode::ClearExistingWavePickups()
 			Pickup->Destroy();
 		}
 	}
+}
+
+void AAssign05GameMode::ShowHUD()
+{
+	if (HUDWidgetClass == nullptr)
+	{
+		return;
+	}
+
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	if (ActiveHUDWidget)
+	{
+		ActiveHUDWidget->RemoveFromParent();
+	}
+
+	ActiveHUDWidget = CreateWidget<UAssign05HUDWidget>(PlayerController, HUDWidgetClass);
+	if (ActiveHUDWidget == nullptr)
+	{
+		return;
+	}
+
+	ActiveHUDWidget->AddToViewport(10);
 }
 
 void AAssign05GameMode::ShowStageTransitionUI(const FAssign05LevelWaveConfig& LevelConfig, const FAssign05WaveConfig& WaveConfig)
@@ -337,11 +470,16 @@ void AAssign05GameMode::ShowStageTransitionUI(const FAssign05LevelWaveConfig& Le
 	ActiveStageTransitionWidget->ShowStageTransition(LevelConfig.LevelNumber, WaveConfig.WaveNumber, WaveConfig.TimeLimit, WaveConfig.ItemSpawnCount, WaveConfig.RequiredPickupCount);
 }
 
-void AAssign05GameMode::ShowGameClearUI()
+void AAssign05GameMode::ShowGameOverUI()
 {
-	if (StageTransitionWidgetClass == nullptr)
+	GetWorldTimerManager().ClearTimer(WaveTimerHandle);
+	GetWorldTimerManager().ClearTimer(NextWaveTimerHandle);
+	ClearExistingWavePickups();
+
+	if (AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
 	{
-		return;
+		AssignGameState->SetTimeRemaining(0.0f);
+		AssignGameState->BroadcastWaveMessage(FText::FromString(TEXT("Time over!")));
 	}
 
 	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
@@ -355,8 +493,62 @@ void AAssign05GameMode::ShowGameClearUI()
 		ActiveStageTransitionWidget->RemoveFromParent();
 	}
 
-	ActiveStageTransitionWidget = CreateWidget<UAssign05StageTransitionWidget>(PlayerController, StageTransitionWidgetClass);
-	if (ActiveStageTransitionWidget == nullptr)
+	if (ActiveEndGameWidget)
+	{
+		ActiveEndGameWidget->RemoveFromParent();
+	}
+
+	if (EndGameWidgetClass)
+	{
+		ActiveEndGameWidget = CreateWidget<UUserWidget>(PlayerController, EndGameWidgetClass);
+		if (ActiveEndGameWidget == nullptr)
+		{
+			return;
+		}
+
+		ActiveEndGameWidget->AddToViewport(100);
+		BindEndGameRetryButton(ActiveEndGameWidget);
+	}
+
+	PlayerController->bShowMouseCursor = true;
+	PlayerController->SetInputMode(FInputModeUIOnly());
+}
+
+void AAssign05GameMode::ShowGameClearUI()
+{
+	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	if (ActiveStageTransitionWidget)
+	{
+		ActiveStageTransitionWidget->RemoveFromParent();
+	}
+
+	if (ActiveEndGameWidget)
+	{
+		ActiveEndGameWidget->RemoveFromParent();
+	}
+
+	if (EndGameWidgetClass)
+	{
+		ActiveEndGameWidget = CreateWidget<UUserWidget>(PlayerController, EndGameWidgetClass);
+		if (ActiveEndGameWidget == nullptr)
+		{
+			return;
+		}
+
+		ActiveEndGameWidget->AddToViewport(100);
+		BindEndGameRetryButton(ActiveEndGameWidget);
+
+		PlayerController->bShowMouseCursor = true;
+		PlayerController->SetInputMode(FInputModeUIOnly());
+		return;
+	}
+
+	if (StageTransitionWidgetClass == nullptr)
 	{
 		return;
 	}
@@ -367,8 +559,59 @@ void AAssign05GameMode::ShowGameClearUI()
 		FinalScore = AssignGameState->GetScore();
 	}
 
+	ActiveStageTransitionWidget = CreateWidget<UAssign05StageTransitionWidget>(PlayerController, StageTransitionWidgetClass);
+	if (ActiveStageTransitionWidget == nullptr)
+	{
+		return;
+	}
+
 	ActiveStageTransitionWidget->AddToViewport(90);
 	ActiveStageTransitionWidget->ShowGameClear(FinalScore);
+}
+
+void AAssign05GameMode::BindEndGameRetryButton(UUserWidget* EndGameWidget)
+{
+	UButton* RetryButton = FindRetryButton(EndGameWidget);
+	if (RetryButton == nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_EndGame retry button was not found. Name it 'RetryButton' or 'retry'."));
+		return;
+	}
+
+	RetryButton->OnClicked.RemoveDynamic(this, &AAssign05GameMode::HandleRetryClicked);
+	RetryButton->OnClicked.AddDynamic(this, &AAssign05GameMode::HandleRetryClicked);
+}
+
+UButton* AAssign05GameMode::FindRetryButton(UUserWidget* EndGameWidget) const
+{
+	if (EndGameWidget == nullptr)
+	{
+		return nullptr;
+	}
+
+	static const FName RetryButtonNames[] =
+	{
+		TEXT("RetryButton"),
+		TEXT("retry"),
+		TEXT("Retry"),
+		TEXT("Button"),
+		TEXT("Button_0")
+	};
+
+	for (const FName ButtonName : RetryButtonNames)
+	{
+		if (UButton* RetryButton = Cast<UButton>(EndGameWidget->GetWidgetFromName(ButtonName)))
+		{
+			return RetryButton;
+		}
+	}
+
+	return nullptr;
+}
+
+void AAssign05GameMode::HandleRetryClicked()
+{
+	RestartGameFromFirstRound();
 }
 
 FText AAssign05GameMode::BuildDefaultWaveMessage(const FAssign05WaveConfig& WaveConfig) const

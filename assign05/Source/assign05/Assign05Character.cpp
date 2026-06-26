@@ -4,6 +4,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Engine/Engine.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 
@@ -40,6 +41,10 @@ void AAssign05Character::BeginPlay()
 	Super::BeginPlay();
 
 	Health = FMath::Clamp(Health, 0.0f, MaxHealth);
+	if (FollowCamera)
+	{
+		DefaultFollowCameraRelativeRotation = FollowCamera->GetRelativeRotation();
+	}
 	ApplyMovementSpeed();
 }
 
@@ -84,12 +89,14 @@ void AAssign05Character::MoveRight(float Value)
 
 void AAssign05Character::Turn(float Value)
 {
-	AddControllerYawInput(Value);
+	const float InputMultiplier = bCameraViewReversed ? -1.0f : 1.0f;
+	AddControllerYawInput(Value * InputMultiplier);
 }
 
 void AAssign05Character::LookUp(float Value)
 {
-	AddControllerPitchInput(Value);
+	const float InputMultiplier = bCameraViewReversed ? -1.0f : 1.0f;
+	AddControllerPitchInput(Value * InputMultiplier);
 }
 
 void AAssign05Character::StartSprint()
@@ -120,6 +127,43 @@ void AAssign05Character::AddHealth(float Amount)
 {
 	Health = FMath::Clamp(Health + Amount, 0.0f, MaxHealth);
 	UE_LOG(LogTemp, Warning, TEXT("Health: %f"), Health);
+}
+
+void AAssign05Character::ApplyCameraReverseDebuff(float Duration)
+{
+	if (Duration <= 0.0f)
+	{
+		return;
+	}
+
+	bCameraViewReversed = true;
+
+	if (FollowCamera)
+	{
+		const FRotator ReversedRotation(
+			DefaultFollowCameraRelativeRotation.Pitch,
+			DefaultFollowCameraRelativeRotation.Yaw,
+			DefaultFollowCameraRelativeRotation.Roll + 180.0f);
+		FollowCamera->SetRelativeRotation(ReversedRotation);
+	}
+
+	GetWorldTimerManager().ClearTimer(CameraReverseTimerHandle);
+	GetWorldTimerManager().SetTimer(CameraReverseTimerHandle, this, &AAssign05Character::EndCameraReverseDebuff, Duration, false);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Purple, TEXT("Camera reversed!"));
+	}
+}
+
+void AAssign05Character::EndCameraReverseDebuff()
+{
+	bCameraViewReversed = false;
+
+	if (FollowCamera)
+	{
+		FollowCamera->SetRelativeRotation(DefaultFollowCameraRelativeRotation);
+	}
 }
 
 float AAssign05Character::TakeDamage(float DamageAmount,

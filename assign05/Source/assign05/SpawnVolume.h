@@ -20,11 +20,20 @@ public:
 	void SpawnWaveItems(int32 SpawnCount);
 
 	UFUNCTION(BlueprintCallable, Category = "Spawn")
+	void SpawnRequiredPickupItems(int32 SpawnCount);
+
+	UFUNCTION(BlueprintCallable, Category = "Spawn")
 	FVector GetRandomPointInVolume() const;
+
+protected:
+	void SpawnItemsOfClass(TSubclassOf<AActor> SpawnClass, int32 SpawnCount);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UBoxComponent> SpawnBounds;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
+	TSubclassOf<AActor> RequiredPickupClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
 	TArray<TSubclassOf<AActor>> SpawnableClasses;

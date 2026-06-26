@@ -5,6 +5,7 @@
 AHealingItem::AHealingItem()
 {
 	ScoreValue = 10;
+	bCountsTowardWaveGoal = false;
 }
 
 void AHealingItem::ApplyPickupEffect_Implementation(APawn* PickingPawn)

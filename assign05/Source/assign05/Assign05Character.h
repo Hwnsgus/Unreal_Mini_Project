@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "TimerManager.h"
 #include "Assign05Character.generated.h"
 
 class UCameraComponent;
@@ -26,6 +27,9 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void AddHealth(float Amount);
+
+	UFUNCTION(BlueprintCallable, Category = "Debuff")
+	void ApplyCameraReverseDebuff(float Duration);
 	
 protected:
 	virtual void BeginPlay() override;
@@ -36,6 +40,7 @@ protected:
 	void LookUp(float Value);
 	void StartSprint();
 	void StopSprint();
+	void EndCameraReverseDebuff();
 
 	void ApplyMovementSpeed();
 	
@@ -72,4 +77,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bWantsToSprint = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Debuff")
+	bool bCameraViewReversed = false;
+
+	FRotator DefaultFollowCameraRelativeRotation = FRotator::ZeroRotator;
+	FTimerHandle CameraReverseTimerHandle;
 };

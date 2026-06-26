@@ -36,7 +36,7 @@ protected:
 	TObjectPtr<UStaticMeshComponent> Mesh;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
-	int32 ScoreValue = 10;
+	int32 ScoreValue = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pickup")
 	bool bCountsTowardWaveGoal = true;
