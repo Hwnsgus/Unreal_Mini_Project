@@ -37,6 +37,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Wave")
 	void RestartGameFromFirstRound();
 
+	UFUNCTION(BlueprintCallable, Category = "Wave")
+	void TriggerGameOver();
+
+	UFUNCTION(BlueprintCallable, Category = "Wave")
+	void TriggerGameOverWithMessage(const FText& GameOverMessage);
+
 protected:
 	void BuildDefaultWaveTable();
 	void EnsureDefaultMapAssignments();
@@ -49,10 +55,12 @@ protected:
 	void ClearExistingWavePickups();
 	void ShowHUD();
 	void ShowStageTransitionUI(const FAssign05LevelWaveConfig& LevelConfig, const FAssign05WaveConfig& WaveConfig);
-	void ShowGameOverUI();
+	void ShowGameOverUI(const FText& GameOverMessage);
 	void ShowGameClearUI();
+	void ApplyEndGameWidgetText(UUserWidget* EndGameWidget, const FText& ResultText);
 	void BindEndGameRetryButton(UUserWidget* EndGameWidget);
 	UButton* FindRetryButton(UUserWidget* EndGameWidget) const;
+	int32 GetCurrentScore() const;
 	FText BuildDefaultWaveMessage(const FAssign05WaveConfig& WaveConfig) const;
 
 	UFUNCTION()

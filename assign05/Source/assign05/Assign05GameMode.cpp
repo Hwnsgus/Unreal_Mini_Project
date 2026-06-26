@@ -9,11 +9,42 @@
 #include "Assign05StageTransitionWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/Button.h"
+#include "Components/EditableTextBox.h"
+#include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 #include "PickupItemBase.h"
 #include "SpawnVolume.h"
 #include "UObject/ConstructorHelpers.h"
+
+namespace
+{
+bool SetEndGameTextByNames(UUserWidget* EndGameWidget, const TArray<FName>& CandidateNames, const FText& Text)
+{
+	if (EndGameWidget == nullptr)
+	{
+		return false;
+	}
+
+	for (const FName& WidgetName : CandidateNames)
+	{
+		if (UTextBlock* TextBlock = Cast<UTextBlock>(EndGameWidget->GetWidgetFromName(WidgetName)))
+		{
+			TextBlock->SetText(Text);
+			return true;
+		}
+
+		if (UEditableTextBox* TextBox = Cast<UEditableTextBox>(EndGameWidget->GetWidgetFromName(WidgetName)))
+		{
+			TextBox->SetText(Text);
+			TextBox->SetIsReadOnly(true);
+			return true;
+		}
+	}
+
+	return false;
+}
+}
 
 AAssign05GameMode::AAssign05GameMode()
 {
@@ -173,6 +204,16 @@ void AAssign05GameMode::RestartGameFromFirstRound()
 	UGameplayStatics::OpenLevel(this, MapToLoad);
 }
 
+void AAssign05GameMode::TriggerGameOver()
+{
+	TriggerGameOverWithMessage(FText::FromString(TEXT("GAME OVER")));
+}
+
+void AAssign05GameMode::TriggerGameOverWithMessage(const FText& GameOverMessage)
+{
+	ShowGameOverUI(GameOverMessage);
+}
+
 void AAssign05GameMode::BuildDefaultWaveTable()
 {
 	LevelConfigs.Empty();
@@ -272,7 +313,7 @@ void AAssign05GameMode::TickWaveTimer()
 
 	if (NewTimeRemaining <= 0.0f)
 	{
-		ShowGameOverUI();
+		ShowGameOverUI(FText::FromString(TEXT("TIME OVER")));
 	}
 }
 
@@ -470,7 +511,7 @@ void AAssign05GameMode::ShowStageTransitionUI(const FAssign05LevelWaveConfig& Le
 	ActiveStageTransitionWidget->ShowStageTransition(LevelConfig.LevelNumber, WaveConfig.WaveNumber, WaveConfig.TimeLimit, WaveConfig.ItemSpawnCount, WaveConfig.RequiredPickupCount);
 }
 
-void AAssign05GameMode::ShowGameOverUI()
+void AAssign05GameMode::ShowGameOverUI(const FText& GameOverMessage)
 {
 	GetWorldTimerManager().ClearTimer(WaveTimerHandle);
 	GetWorldTimerManager().ClearTimer(NextWaveTimerHandle);
@@ -479,7 +520,7 @@ void AAssign05GameMode::ShowGameOverUI()
 	if (AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
 	{
 		AssignGameState->SetTimeRemaining(0.0f);
-		AssignGameState->BroadcastWaveMessage(FText::FromString(TEXT("Time over!")));
+		AssignGameState->BroadcastWaveMessage(GameOverMessage);
 	}
 
 	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(this, 0);
@@ -507,6 +548,7 @@ void AAssign05GameMode::ShowGameOverUI()
 		}
 
 		ActiveEndGameWidget->AddToViewport(100);
+		ApplyEndGameWidgetText(ActiveEndGameWidget, GameOverMessage);
 		BindEndGameRetryButton(ActiveEndGameWidget);
 	}
 
@@ -541,6 +583,7 @@ void AAssign05GameMode::ShowGameClearUI()
 		}
 
 		ActiveEndGameWidget->AddToViewport(100);
+		ApplyEndGameWidgetText(ActiveEndGameWidget, FText::FromString(TEXT("STAGE CLEAR")));
 		BindEndGameRetryButton(ActiveEndGameWidget);
 
 		PlayerController->bShowMouseCursor = true;
@@ -567,6 +610,35 @@ void AAssign05GameMode::ShowGameClearUI()
 
 	ActiveStageTransitionWidget->AddToViewport(90);
 	ActiveStageTransitionWidget->ShowGameClear(FinalScore);
+}
+
+void AAssign05GameMode::ApplyEndGameWidgetText(UUserWidget* EndGameWidget, const FText& ResultText)
+{
+	const int32 FinalScore = GetCurrentScore();
+	const FText ScoreText = FText::FromString(FString::Printf(TEXT("Total Score: %d"), FinalScore));
+
+	static const TArray<FName> ResultTextNames =
+	{
+		TEXT("ResultText"),
+		TEXT("TitleText"),
+		TEXT("HeaderText"),
+		TEXT("GameOverText"),
+		TEXT("ClearText")
+	};
+
+	static const TArray<FName> ScoreTextNames =
+	{
+		TEXT("FinalScoreText"),
+		TEXT("TotalScoreText"),
+		TEXT("ScoreText"),
+		TEXT("ResultScoreText")
+	};
+
+	SetEndGameTextByNames(EndGameWidget, ResultTextNames, ResultText);
+	if (!SetEndGameTextByNames(EndGameWidget, ScoreTextNames, ScoreText))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("WBP_EndGame score text was not found. Name a TextBlock 'FinalScoreText' or 'TotalScoreText'."));
+	}
 }
 
 void AAssign05GameMode::BindEndGameRetryButton(UUserWidget* EndGameWidget)
@@ -607,6 +679,16 @@ UButton* AAssign05GameMode::FindRetryButton(UUserWidget* EndGameWidget) const
 	}
 
 	return nullptr;
+}
+
+int32 AAssign05GameMode::GetCurrentScore() const
+{
+	if (const AAssign05GameState* AssignGameState = GetGameState<AAssign05GameState>())
+	{
+		return AssignGameState->GetScore();
+	}
+
+	return CarriedScore;
 }
 
 void AAssign05GameMode::HandleRetryClicked()

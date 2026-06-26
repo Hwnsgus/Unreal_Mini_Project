@@ -42,6 +42,7 @@ def main():
     game_mode_class = unreal.load_class(None, "/Script/assign05.Assign05GameMode")
     spawn_volume_class = unreal.load_class(None, "/Script/assign05.SpawnVolume")
     rising_obstacle_class = unreal.load_class(None, "/Script/assign05.RisingObstacle")
+    fall_death_trigger_class = unreal.load_class(None, "/Script/assign05.FallDeathTrigger")
     pickup_item_class = unreal.load_class(None, "/Script/assign05.PickupItemBase")
     healing_item_class = unreal.load_class(None, "/Script/assign05.HealingItem")
     mine_item_class = unreal.load_class(None, "/Script/assign05.MineItem")
@@ -53,6 +54,7 @@ def main():
     game_mode_bp = create_blueprint(path, "BP_Assign05GameMode", game_mode_class)
     spawn_volume_bp = create_blueprint(path, "BP_SpawnVolume", spawn_volume_class)
     rising_obstacle_bp = create_blueprint(path, "BP_RisingObstacle", rising_obstacle_class)
+    fall_death_trigger_bp = create_blueprint(path, "BP_FallDeathTrigger", fall_death_trigger_class)
     pickup_item_bp = create_blueprint(path, "BP_PickupItemBase", pickup_item_class)
     healing_item_bp = create_blueprint(path, "BP_HealingItem", healing_item_class)
     mine_item_bp = create_blueprint(path, "BP_MineItem", mine_item_class)
@@ -158,7 +160,7 @@ def main():
             "camera reverse duration on BP_MineItem",
         )
 
-    for asset in (character_bp, platform_bp, game_mode_bp, spawn_volume_bp, rising_obstacle_bp, pickup_item_bp, healing_item_bp, mine_item_bp, hud_bp, stage_transition_bp, end_game_bp):
+    for asset in (character_bp, platform_bp, game_mode_bp, spawn_volume_bp, rising_obstacle_bp, fall_death_trigger_bp, pickup_item_bp, healing_item_bp, mine_item_bp, hud_bp, stage_transition_bp, end_game_bp):
         if asset:
             try:
                 unreal.KismetEditorUtilities.compile_blueprint(asset)
