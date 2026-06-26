@@ -9,6 +9,10 @@
 
 class UCameraComponent;
 class USpringArmComponent;
+class UTextBlock;
+class UUserWidget;
+class UWidget;
+class UWidgetComponent;
 
 UCLASS()
 class ASSIGN05_API AAssign05Character : public ACharacter
@@ -18,12 +22,16 @@ class ASSIGN05_API AAssign05Character : public ACharacter
 public:
 	AAssign05Character();
 
+	virtual void Tick(float DeltaSeconds) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 	UFUNCTION(BlueprintCallable, Category = "Movement")
 	bool IsSprinting() const { return bWantsToSprint; }
 
 	float GetHealth() const;
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetMaxHealth() const { return MaxHealth; }
 	
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void AddHealth(float Amount);
@@ -43,6 +51,11 @@ protected:
 	void EndCameraReverseDebuff();
 
 	void ApplyMovementSpeed();
+	void ConfigureHPWidgetComponent();
+	void UpdateHPWidgetTransform();
+	void RefreshHPWidget();
+	void CenterHPTextWidget(UWidget* TextWidget) const;
+	bool SetHPTextOnWidget(UUserWidget* HPWidget, const FText& HPText) const;
 	
 	void OnDeath();
 	
@@ -51,6 +64,21 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
 	float Health = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health|UI")
+	TObjectPtr<UWidgetComponent> HPWidgetComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|UI")
+	TSubclassOf<UUserWidget> HPWidgetClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|UI")
+	FVector HPWidgetOffset = FVector(0.0f, 0.0f, 135.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|UI")
+	FVector2D HPWidgetDrawSize = FVector2D(180.0f, 50.0f);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health|UI", meta = (ClampMin = "0.01"))
+	float HPWidgetWorldScale = 0.35f;
 
 	virtual float TakeDamage(float DamageAmount,
 		struct FDamageEvent const& DamageEvent,

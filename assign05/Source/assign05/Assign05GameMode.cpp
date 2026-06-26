@@ -7,7 +7,9 @@
 #include "Assign05GameState.h"
 #include "Assign05HUDWidget.h"
 #include "Assign05StageTransitionWidget.h"
+#include "Animation/WidgetAnimation.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
@@ -43,6 +45,92 @@ bool SetEndGameTextByNames(UUserWidget* EndGameWidget, const TArray<FName>& Cand
 	}
 
 	return false;
+}
+
+bool TryCallEndGameAnimationFunction(UUserWidget* EndGameWidget)
+{
+	if (EndGameWidget == nullptr)
+	{
+		return false;
+	}
+
+	static const FName FunctionNames[] =
+	{
+		TEXT("PlayResultTextAnimation"),
+		TEXT("PlayResultAnimation"),
+		TEXT("PlayEndGameAnimation"),
+		TEXT("PlayGameOverAnimation"),
+		TEXT("PlayBlinkAnimation"),
+		TEXT("PlayResultTextBlinkAnimation"),
+		TEXT("StartResultTextAnimation"),
+		TEXT("StartResultAnimation"),
+		TEXT("StartBlinkAnimation"),
+		TEXT("ResultTextAnimation"),
+		TEXT("ResultTextBlink"),
+		TEXT("BlinkResultText")
+	};
+
+	for (const FName& FunctionName : FunctionNames)
+	{
+		if (UFunction* AnimationFunction = EndGameWidget->FindFunction(FunctionName))
+		{
+			if (AnimationFunction->NumParms == 0)
+			{
+				EndGameWidget->ProcessEvent(AnimationFunction, nullptr);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+void PlayEndGameAnimationByAsset(UUserWidget* EndGameWidget)
+{
+	if (EndGameWidget == nullptr)
+	{
+		return;
+	}
+
+	UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(EndGameWidget->GetClass());
+	if (WidgetClass == nullptr)
+	{
+		return;
+	}
+
+	UWidgetAnimation* FallbackAnimation = nullptr;
+	for (UWidgetAnimation* Animation : WidgetClass->Animations)
+	{
+		if (Animation == nullptr)
+		{
+			continue;
+		}
+
+		if (FallbackAnimation == nullptr)
+		{
+			FallbackAnimation = Animation;
+		}
+
+		const FString AnimationName = Animation->GetName();
+		if (AnimationName.Contains(TEXT("Result")) || AnimationName.Contains(TEXT("Blink")) || AnimationName.Contains(TEXT("Text")))
+		{
+			EndGameWidget->PlayAnimation(Animation, 0.0f, 0);
+			return;
+		}
+	}
+
+	if (FallbackAnimation)
+	{
+		EndGameWidget->PlayAnimation(FallbackAnimation, 0.0f, 0);
+	}
+}
+
+void PlayEndGamePresentation(UUserWidget* EndGameWidget)
+{
+	if (!TryCallEndGameAnimationFunction(EndGameWidget))
+	{
+		PlayEndGameAnimationByAsset(EndGameWidget);
+	}
 }
 }
 
@@ -549,6 +637,7 @@ void AAssign05GameMode::ShowGameOverUI(const FText& GameOverMessage)
 
 		ActiveEndGameWidget->AddToViewport(100);
 		ApplyEndGameWidgetText(ActiveEndGameWidget, GameOverMessage);
+		PlayEndGamePresentation(ActiveEndGameWidget);
 		BindEndGameRetryButton(ActiveEndGameWidget);
 	}
 
@@ -584,6 +673,7 @@ void AAssign05GameMode::ShowGameClearUI()
 
 		ActiveEndGameWidget->AddToViewport(100);
 		ApplyEndGameWidgetText(ActiveEndGameWidget, FText::FromString(TEXT("STAGE CLEAR")));
+		PlayEndGamePresentation(ActiveEndGameWidget);
 		BindEndGameRetryButton(ActiveEndGameWidget);
 
 		PlayerController->bShowMouseCursor = true;
