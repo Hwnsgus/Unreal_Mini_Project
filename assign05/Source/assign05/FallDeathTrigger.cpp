@@ -19,7 +19,7 @@ AFallDeathTrigger::AFallDeathTrigger()
 	TriggerBox->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TriggerBox->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
-	GameOverMessage = FText::FromString(TEXT("YOU FELL"));
+	GameOverMessage = FText::FromString(TEXT("Game Over!"));
 }
 
 void AFallDeathTrigger::BeginPlay()

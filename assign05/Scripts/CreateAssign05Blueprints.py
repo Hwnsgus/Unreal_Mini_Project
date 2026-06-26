@@ -60,7 +60,17 @@ def main():
     mine_item_bp = create_blueprint(path, "BP_MineItem", mine_item_class)
     hud_bp = create_blueprint(ui_path, "WBP_HUD", hud_class)
     stage_transition_bp = create_blueprint(ui_path, "WBP_StageTransition", stage_transition_class)
+    hp_bp = unreal.EditorAssetLibrary.load_asset(f"{ui_path}/WBP_HP")
     end_game_bp = unreal.EditorAssetLibrary.load_asset(f"{ui_path}/WBP_EndGame")
+
+    if character_bp and hp_bp:
+        character_cdo = unreal.get_default_object(character_bp.generated_class())
+        set_first_existing_property(
+            character_cdo,
+            ["hp_widget_class"],
+            hp_bp.generated_class(),
+            "HP widget class on BP_Assign05Character",
+        )
 
     if game_mode_bp:
         game_mode_cdo = unreal.get_default_object(game_mode_bp.generated_class())
@@ -155,12 +165,18 @@ def main():
         )
         set_first_existing_property(
             mine_item_cdo,
+            ["damage_amount"],
+            20.0,
+            "damage amount on BP_MineItem",
+        )
+        set_first_existing_property(
+            mine_item_cdo,
             ["camera_reverse_duration"],
             5.0,
             "camera reverse duration on BP_MineItem",
         )
 
-    for asset in (character_bp, platform_bp, game_mode_bp, spawn_volume_bp, rising_obstacle_bp, fall_death_trigger_bp, pickup_item_bp, healing_item_bp, mine_item_bp, hud_bp, stage_transition_bp, end_game_bp):
+    for asset in (character_bp, platform_bp, game_mode_bp, spawn_volume_bp, rising_obstacle_bp, fall_death_trigger_bp, pickup_item_bp, healing_item_bp, mine_item_bp, hud_bp, hp_bp, stage_transition_bp, end_game_bp):
         if asset:
             try:
                 unreal.KismetEditorUtilities.compile_blueprint(asset)

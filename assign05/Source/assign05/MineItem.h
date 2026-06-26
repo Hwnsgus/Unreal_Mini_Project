@@ -13,6 +13,9 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mine")
+	float DamageAmount = 20.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mine")
 	float CameraReverseDuration = 5.0f;
 
 	virtual void ApplyPickupEffect_Implementation(APawn* PickingPawn) override;
