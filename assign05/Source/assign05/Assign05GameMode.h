@@ -46,7 +46,8 @@ public:
 protected:
 	void BuildDefaultWaveTable();
 	void EnsureDefaultMapAssignments();
-	void NormalizeLevelConfigsForSingleWaveRounds();
+	void NormalizeLevelConfigsForThreeWaveRounds();
+	void ConfigureWaveDifficulty(FAssign05WaveConfig& WaveConfig, int32 LevelIndex, int32 WaveIndex) const;
 	void TickWaveTimer();
 	void AdvanceToNextWaveOrLevel();
 	bool TryTravelToWaveMap(int32 NextLevelIndex, int32 NextWaveIndex);
@@ -72,6 +73,24 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
 	float TimeBetweenWaves = 2.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Difficulty", meta = (ClampMin = "1"))
+	int32 WavesPerRound = 3;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Difficulty", meta = (ClampMin = "1"))
+	int32 BaseRequiredPickupCount = 4;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Difficulty", meta = (ClampMin = "0"))
+	int32 RequiredPickupIncreasePerWave = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Difficulty", meta = (ClampMin = "0"))
+	int32 RequiredPickupIncreasePerRound = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Difficulty", meta = (ClampMin = "0"))
+	int32 BonusItemCountPerWave = 2;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave|Difficulty", meta = (ClampMin = "1.0"))
+	float DefaultWaveTimeLimit = 30.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Wave")
 	bool bAutoStartGameFlow = true;
@@ -104,6 +123,8 @@ protected:
 	int32 CarriedScore = 0;
 
 private:
+	bool bWaveTransitionInProgress = false;
+
 	FTimerHandle WaveTimerHandle;
 	FTimerHandle NextWaveTimerHandle;
 

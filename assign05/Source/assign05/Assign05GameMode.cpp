@@ -176,7 +176,7 @@ void AAssign05GameMode::StartGameFlow()
 		BuildDefaultWaveTable();
 	}
 	EnsureDefaultMapAssignments();
-	NormalizeLevelConfigsForSingleWaveRounds();
+	NormalizeLevelConfigsForThreeWaveRounds();
 
 	CurrentLevelIndex = 0;
 	CurrentWaveIndex = 0;
@@ -190,7 +190,7 @@ void AAssign05GameMode::StartGameFlow()
 		if (AssignGameInstance->ConsumeWaveProgress(SavedLevelIndex, SavedWaveIndex, SavedScore))
 		{
 			CurrentLevelIndex = FMath::Clamp(SavedLevelIndex, 0, FMath::Max(0, LevelConfigs.Num() - 1));
-			CurrentWaveIndex = 0;
+			CurrentWaveIndex = FMath::Clamp(SavedWaveIndex, 0, FMath::Max(0, LevelConfigs[CurrentLevelIndex].Waves.Num() - 1));
 			CarriedScore = SavedScore;
 		}
 	}
@@ -210,6 +210,7 @@ void AAssign05GameMode::StartCurrentWave()
 
 	const FAssign05LevelWaveConfig& LevelConfig = LevelConfigs[CurrentLevelIndex];
 	const FAssign05WaveConfig& WaveConfig = LevelConfig.Waves[CurrentWaveIndex];
+	bWaveTransitionInProgress = false;
 	CurrentWaveCollectedItems = 0;
 	ClearExistingWavePickups();
 	ShowStageTransitionUI(LevelConfig, WaveConfig);
@@ -231,7 +232,14 @@ void AAssign05GameMode::StartCurrentWave()
 
 void AAssign05GameMode::EndCurrentWave()
 {
+	if (bWaveTransitionInProgress)
+	{
+		return;
+	}
+
+	bWaveTransitionInProgress = true;
 	GetWorldTimerManager().ClearTimer(WaveTimerHandle);
+	ClearExistingWavePickups();
 	AdvanceToNextWaveOrLevel();
 }
 
@@ -323,12 +331,12 @@ void AAssign05GameMode::BuildDefaultWaveTable()
 			LevelConfig.OptionalMap = TSoftObjectPtr<UWorld>(FSoftObjectPath(TEXT("/Game/Assign05/Maps/Round3.Round3")));
 		}
 
-		FAssign05WaveConfig WaveConfig;
-		WaveConfig.WaveNumber = 1;
-		WaveConfig.TimeLimit = 30.0f;
-		WaveConfig.ItemSpawnCount = 5 + LevelNumber;
-		WaveConfig.RequiredPickupCount = FMath::Max(2, WaveConfig.ItemSpawnCount - 2);
-		LevelConfig.Waves.Add(WaveConfig);
+		for (int32 WaveIndex = 0; WaveIndex < FMath::Max(1, WavesPerRound); ++WaveIndex)
+		{
+			FAssign05WaveConfig WaveConfig;
+			ConfigureWaveDifficulty(WaveConfig, LevelNumber - 1, WaveIndex);
+			LevelConfig.Waves.Add(WaveConfig);
+		}
 
 		LevelConfigs.Add(LevelConfig);
 	}
@@ -358,34 +366,34 @@ void AAssign05GameMode::EnsureDefaultMapAssignments()
 	}
 }
 
-void AAssign05GameMode::NormalizeLevelConfigsForSingleWaveRounds()
+void AAssign05GameMode::NormalizeLevelConfigsForThreeWaveRounds()
 {
 	for (int32 Index = 0; Index < LevelConfigs.Num(); ++Index)
 	{
 		FAssign05LevelWaveConfig& LevelConfig = LevelConfigs[Index];
 		LevelConfig.LevelNumber = Index + 1;
+		LevelConfig.Waves.SetNum(FMath::Max(1, WavesPerRound));
 
-		if (LevelConfig.Waves.Num() == 0)
+		for (int32 WaveIndex = 0; WaveIndex < LevelConfig.Waves.Num(); ++WaveIndex)
 		{
-			FAssign05WaveConfig DefaultWave;
-			DefaultWave.WaveNumber = 1;
-			DefaultWave.TimeLimit = 30.0f;
-			DefaultWave.ItemSpawnCount = 6 + Index;
-			DefaultWave.RequiredPickupCount = FMath::Max(2, DefaultWave.ItemSpawnCount - 2);
-			LevelConfig.Waves.Add(DefaultWave);
+			ConfigureWaveDifficulty(LevelConfig.Waves[WaveIndex], Index, WaveIndex);
 		}
-		else if (LevelConfig.Waves.Num() > 1)
-		{
-			LevelConfig.Waves.SetNum(1);
-		}
-
-		FAssign05WaveConfig& WaveConfig = LevelConfig.Waves[0];
-		WaveConfig.WaveNumber = 1;
-		WaveConfig.TimeLimit = 30.0f;
-		WaveConfig.OptionalMap.Reset();
-		WaveConfig.ItemSpawnCount = FMath::Max(1, WaveConfig.ItemSpawnCount);
-		WaveConfig.RequiredPickupCount = FMath::Clamp(WaveConfig.RequiredPickupCount, 1, WaveConfig.ItemSpawnCount);
 	}
+}
+
+void AAssign05GameMode::ConfigureWaveDifficulty(FAssign05WaveConfig& WaveConfig, int32 LevelIndex, int32 WaveIndex) const
+{
+	const int32 RequiredPickupCount = FMath::Max(
+		1,
+		BaseRequiredPickupCount
+		+ LevelIndex * RequiredPickupIncreasePerRound
+		+ WaveIndex * RequiredPickupIncreasePerWave);
+
+	WaveConfig.WaveNumber = WaveIndex + 1;
+	WaveConfig.TimeLimit = FMath::Max(1.0f, DefaultWaveTimeLimit);
+	WaveConfig.RequiredPickupCount = RequiredPickupCount;
+	WaveConfig.ItemSpawnCount = RequiredPickupCount + FMath::Max(0, BonusItemCountPerWave);
+	WaveConfig.OptionalMap.Reset();
 }
 
 void AAssign05GameMode::TickWaveTimer()
@@ -411,11 +419,6 @@ void AAssign05GameMode::AdvanceToNextWaveOrLevel()
 
 	if (LevelConfigs.IsValidIndex(CurrentLevelIndex) && LevelConfigs[CurrentLevelIndex].Waves.IsValidIndex(CurrentWaveIndex))
 	{
-		if (TryTravelToWaveMap(CurrentLevelIndex, CurrentWaveIndex))
-		{
-			return;
-		}
-
 		GetWorldTimerManager().SetTimer(NextWaveTimerHandle, this, &AAssign05GameMode::StartCurrentWave, TimeBetweenWaves, false);
 		return;
 	}
@@ -601,6 +604,7 @@ void AAssign05GameMode::ShowStageTransitionUI(const FAssign05LevelWaveConfig& Le
 
 void AAssign05GameMode::ShowGameOverUI(const FText& GameOverMessage)
 {
+	bWaveTransitionInProgress = true;
 	GetWorldTimerManager().ClearTimer(WaveTimerHandle);
 	GetWorldTimerManager().ClearTimer(NextWaveTimerHandle);
 	ClearExistingWavePickups();
