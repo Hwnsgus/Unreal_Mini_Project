@@ -17,6 +17,12 @@ public:
     UFUNCTION(Client, Reliable)
     void ClientRPCReceiveMessage(const FString& Message);
 
+    UFUNCTION(BlueprintPure, Category = "UI")
+    FText GetNotificationText() const;
+
+    UPROPERTY(BlueprintReadOnly, Category = "UI")
+    FText NotificationText;
+
 protected:
     virtual void BeginPlay() override;
 
@@ -28,6 +34,12 @@ protected:
 
     UPROPERTY()
     TObjectPtr<UUserWidget> MainWidget;
+
+    UPROPERTY(EditDefaultsOnly, Category = "UI")
+    TSubclassOf<UUserWidget> NotificationTextWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UUserWidget> NotificationTextWidgetInstance;
 
 private:
     void PrintMessage(const FString& Message) const;
