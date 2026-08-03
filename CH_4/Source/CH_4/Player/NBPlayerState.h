@@ -4,6 +4,15 @@
 #include "GameFramework/PlayerState.h"
 #include "NBPlayerState.generated.h"
 
+UENUM(BlueprintType)
+enum class ENBMatchResult : uint8
+{
+    None,
+    Win,
+    Lose,
+    Draw
+};
+
 UCLASS()
 class CH_4_API ANBPlayerState : public APlayerState
 {
@@ -20,6 +29,8 @@ public:
     void SetPlayerNumber(int32 InPlayerNumber);
     bool TryIncreaseGuessCount();
     void ResetGuessCount();
+    void SetMatchResult(ENBMatchResult InMatchResult);
+    void ResetMatchResult();
 
     UFUNCTION(BlueprintPure, Category = "Number Baseball")
     int32 GetPlayerNumber() const;
@@ -35,6 +46,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Number Baseball")
     bool HasRemainingGuesses() const;
+
+    UFUNCTION(BlueprintPure, Category = "Number Baseball")
+    ENBMatchResult GetMatchResult() const;
 
 private:
     UPROPERTY(
@@ -63,4 +77,13 @@ private:
         meta = (AllowPrivateAccess = "true", ClampMin = "1")
     )
     int32 MaxGuessCount;
+
+    UPROPERTY(
+        Replicated,
+        VisibleInstanceOnly,
+        BlueprintReadOnly,
+        Category = "Number Baseball",
+        meta = (AllowPrivateAccess = "true")
+    )
+    ENBMatchResult MatchResult;
 };

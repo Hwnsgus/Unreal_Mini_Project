@@ -6,6 +6,7 @@ ANBPlayerState::ANBPlayerState()
     : PlayerNumber(0)
     , CurrentGuessCount(0)
     , MaxGuessCount(3)
+    , MatchResult(ENBMatchResult::None)
 {
     bReplicates = true;
 }
@@ -19,6 +20,7 @@ void ANBPlayerState::GetLifetimeReplicatedProps(
     DOREPLIFETIME(ThisClass, PlayerNumber);
     DOREPLIFETIME(ThisClass, CurrentGuessCount);
     DOREPLIFETIME(ThisClass, MaxGuessCount);
+    DOREPLIFETIME(ThisClass, MatchResult);
 }
 
 void ANBPlayerState::SetPlayerNumber(const int32 InPlayerNumber)
@@ -55,6 +57,22 @@ void ANBPlayerState::ResetGuessCount()
     ForceNetUpdate();
 }
 
+void ANBPlayerState::SetMatchResult(const ENBMatchResult InMatchResult)
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    MatchResult = InMatchResult;
+    ForceNetUpdate();
+}
+
+void ANBPlayerState::ResetMatchResult()
+{
+    SetMatchResult(ENBMatchResult::None);
+}
+
 int32 ANBPlayerState::GetPlayerNumber() const
 {
     return PlayerNumber;
@@ -78,4 +96,9 @@ int32 ANBPlayerState::GetRemainingGuessCount() const
 bool ANBPlayerState::HasRemainingGuesses() const
 {
     return CurrentGuessCount < MaxGuessCount;
+}
+
+ENBMatchResult ANBPlayerState::GetMatchResult() const
+{
+    return MatchResult;
 }

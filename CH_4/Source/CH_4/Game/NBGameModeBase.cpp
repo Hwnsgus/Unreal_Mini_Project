@@ -6,7 +6,7 @@
 #include "Player/NBPlayerState.h"
 
 ANBGameModeBase::ANBGameModeBase()
-    : TurnDurationSeconds(15.0f)
+    : TurnDurationSeconds(30.0f)
     , MinimumPlayersToStart(2)
     , GameResetDelaySeconds(3.0f)
     , NextPlayerNumber(1)
@@ -29,7 +29,7 @@ void ANBGameModeBase::BeginPlay()
     UE_LOG(
         LogTemp,
         Log,
-        TEXT("Number baseball started. Secret number: %s, NetMode: %d"),
+        TEXT("숫자 야구를 시작합니다. 주어진 번호: %s, NetMode: %d"),
         *SecretNumber,
         static_cast<int32>(GetNetMode())
     );
@@ -60,14 +60,14 @@ void ANBGameModeBase::OnPostLogin(AController* NewPlayer)
 
     PlayerController->ClientRPCReceiveMessage(
         FString::Printf(
-            TEXT("You are Player %d. Enter three unique digits from 1 to 9."),
+            TEXT("당신은 %d 플레이어입니다. 1부터 9까지 고유 숫자 3개를 입력하세요."),
             AssignedPlayerNumber
         )
     );
 
     BroadcastMessage(
         FString::Printf(
-            TEXT("Player %d joined the game."),
+            TEXT("플레이어 %d이(가) 게임에 참여했습니다."),
             AssignedPlayerNumber
         )
     );
@@ -78,7 +78,7 @@ void ANBGameModeBase::OnPostLogin(AController* NewPlayer)
     {
         PlayerController->ClientRPCReceiveMessage(
             FString::Printf(
-                TEXT("Waiting for players... (%d/%d)"),
+                TEXT("플레이어들을 기다리고 있습니다.. (%d/%d)"),
                 GetSortedPlayerStates().Num(),
                 MinimumPlayersToStart
             )
@@ -106,7 +106,7 @@ void ANBGameModeBase::Logout(AController* Exiting)
 
     BroadcastMessage(
         FString::Printf(
-            TEXT("Player %d left the game."),
+            TEXT("플레이어 %d이(가) 게임을 떠났습니다."),
             LeavingPlayerNumber
         )
     );
@@ -122,7 +122,7 @@ void ANBGameModeBase::Logout(AController* Exiting)
             TurnStateActor->ClearTurnState();
         }
 
-        BroadcastMessage(TEXT("Waiting for another player."));
+        BroadcastMessage(TEXT("다른 플레이어를 기다리고 있습니다."));
         return;
     }
 
@@ -145,7 +145,7 @@ void ANBGameModeBase::HandleGuess(
     if (!bGameInProgress)
     {
         PlayerController->ClientRPCReceiveMessage(
-            TEXT("The game is waiting for more players.")
+            TEXT("현재 게임이 더 많은 플레이어를 기다리고 있습니다.")
         );
         return;
     }
@@ -153,7 +153,7 @@ void ANBGameModeBase::HandleGuess(
     if (!IsPlayersTurn(PlayerController))
     {
         PlayerController->ClientRPCReceiveMessage(
-            TEXT("It is not your turn.")
+            TEXT("당신 차례가 아닙니다.")
         );
         return;
     }
@@ -176,7 +176,7 @@ void ANBGameModeBase::HandleGuess(
     if (!PlayerState->HasRemainingGuesses())
     {
         PlayerController->ClientRPCReceiveMessage(
-            TEXT("You have no guesses remaining.")
+            TEXT("남은 기회가 없습니다.")
         );
         return;
     }
@@ -198,7 +198,7 @@ void ANBGameModeBase::HandleGuess(
 
     BroadcastMessage(
         FString::Printf(
-            TEXT("Player %d: %s -> %s [%d/%d]"),
+            TEXT("플레이어 %d: %s -> %s [%d/%d]"),
             PlayerState->GetPlayerNumber(),
             *Guess,
             *Result,
@@ -239,7 +239,7 @@ void ANBGameModeBase::TryStartGame()
     }
 
     bGameInProgress = true;
-    BroadcastMessage(TEXT("The game has started."));
+    BroadcastMessage(TEXT("게임이 시작되었습니다."));
     StartTurn(PlayerStates[0]->GetPlayerNumber());
 }
 
@@ -274,7 +274,7 @@ void ANBGameModeBase::StartTurn(const int32 PlayerNumber)
 
     BroadcastMessage(
         FString::Printf(
-            TEXT("Player %d's turn. %.0f seconds remaining."),
+            TEXT("플레이어 %d의 차례입니다. %.0f초 남았습니다."),
             PlayerNumber,
             TurnDurationSeconds
         )
@@ -345,7 +345,7 @@ void ANBGameModeBase::HandleTurnTimeout()
 
             BroadcastMessage(
                 FString::Printf(
-                    TEXT("Player %d timed out. Guess used [%d/%d]."),
+                    TEXT("플레이어 %d이(가) 시간 초과되었습니다. [%d/%d]을(를) 사용한 것 같습니다."),
                     TimedOutPlayerNumber,
                     PlayerState->GetCurrentGuessCount(),
                     PlayerState->GetMaxGuessCount()
@@ -419,7 +419,7 @@ bool ANBGameModeBase::ValidateGuess(
 {
     if (Guess.Len() != 3)
     {
-        OutError = TEXT("Enter exactly three digits.");
+        OutError = TEXT("정확히 세 자리 숫자를 입력하세요.");
         return false;
     }
 
@@ -428,13 +428,13 @@ bool ANBGameModeBase::ValidateGuess(
     {
         if (Character < TEXT('1') || Character > TEXT('9'))
         {
-            OutError = TEXT("Only digits from 1 to 9 are allowed.");
+            OutError = TEXT("1부터 9까지의 숫자만 허용됩니다.");
             return false;
         }
 
         if (UniqueDigits.Contains(Character))
         {
-            OutError = TEXT("Duplicate digits are not allowed.");
+            OutError = TEXT("중복된 숫자는 허용되지 않습니다.");
             return false;
         }
 
@@ -537,13 +537,24 @@ void ANBGameModeBase::FinishGameWithWinner(
     ANBPlayerState* WinnerPlayerState
 )
 {
-    if (!HasAuthority() || !IsValid(WinnerPlayerState))
+    if (!HasAuthority()
+        || !bGameInProgress
+        || !IsValid(WinnerPlayerState))
     {
         return;
     }
 
     const int32 WinnerPlayerNumber =
         WinnerPlayerState->GetPlayerNumber();
+
+    for (ANBPlayerState* PlayerState : GetSortedPlayerStates())
+    {
+        PlayerState->SetMatchResult(
+            PlayerState == WinnerPlayerState
+                ? ENBMatchResult::Win
+                : ENBMatchResult::Lose
+        );
+    }
 
     for (TActorIterator<ANBPlayerController> It(GetWorld()); It; ++It)
     {
@@ -565,7 +576,7 @@ void ANBGameModeBase::FinishGameWithWinner(
         {
             PlayerController->ClientRPCReceiveMessage(
                 FString::Printf(
-                    TEXT("YOU WIN! Player %d guessed the secret number."),
+                    TEXT("당신이 승리했습니다! 플레이어 %d이(가) 비밀 번호를 추측했습니다."),
                     WinnerPlayerNumber
                 )
             );
@@ -574,7 +585,7 @@ void ANBGameModeBase::FinishGameWithWinner(
         {
             PlayerController->ClientRPCReceiveMessage(
                 FString::Printf(
-                    TEXT("YOU LOSE. Player %d wins."),
+                    TEXT("당신이 패배했습니다. 플레이어 %d이(가) 승리했습니다."),
                     WinnerPlayerNumber
                 )
             );
@@ -586,12 +597,17 @@ void ANBGameModeBase::FinishGameWithWinner(
 
 void ANBGameModeBase::FinishGameAsDraw()
 {
-    if (!HasAuthority())
+    if (!HasAuthority() || !bGameInProgress)
     {
         return;
     }
 
-    BroadcastMessage(TEXT("DRAW! All players used every guess."));
+    for (ANBPlayerState* PlayerState : GetSortedPlayerStates())
+    {
+        PlayerState->SetMatchResult(ENBMatchResult::Draw);
+    }
+
+    BroadcastMessage(TEXT("비겼습니다! 모든 플레이어가 기회를 모두 사용했습니다."));
     ScheduleGameReset();
 }
 
@@ -629,6 +645,7 @@ void ANBGameModeBase::ResetGame()
     for (ANBPlayerState* PlayerState : GetSortedPlayerStates())
     {
         PlayerState->ResetGuessCount();
+        PlayerState->ResetMatchResult();
     }
 
     SecretNumber = GenerateSecretNumber();
@@ -637,10 +654,10 @@ void ANBGameModeBase::ResetGame()
     UE_LOG(
         LogTemp,
         Log,
-        TEXT("New secret number: %s"),
+        TEXT("새로 제시된 숫자: %s"),
         *SecretNumber
     );
 
-    BroadcastMessage(TEXT("A new game has started."));
+    BroadcastMessage(TEXT("새로운 게임이 시작됐습니다."));
     TryStartGame();
 }
