@@ -8,6 +8,7 @@
 ANBGameModeBase::ANBGameModeBase()
     : TurnDurationSeconds(15.0f)
     , MinimumPlayersToStart(2)
+    , GameResetDelaySeconds(3.0f)
     , NextPlayerNumber(1)
     , bGameInProgress(false)
 {
@@ -208,20 +209,13 @@ void ANBGameModeBase::HandleGuess(
 
     if (StrikeCount == 3)
     {
-        BroadcastMessage(
-            FString::Printf(
-                TEXT("Player %d wins!"),
-                PlayerState->GetPlayerNumber()
-            )
-        );
-        ResetGame();
+        FinishGameWithWinner(PlayerState);
         return;
     }
 
     if (AreAllPlayersOutOfGuesses())
     {
-        BroadcastMessage(TEXT("Draw! All players used every guess."));
-        ResetGame();
+        FinishGameAsDraw();
         return;
     }
 
@@ -230,7 +224,8 @@ void ANBGameModeBase::HandleGuess(
 
 void ANBGameModeBase::TryStartGame()
 {
-    if (bGameInProgress)
+    if (bGameInProgress
+        || GetWorldTimerManager().IsTimerActive(ResetTimerHandle))
     {
         return;
     }
@@ -326,8 +321,7 @@ void ANBGameModeBase::AdvanceTurn()
         }
     }
 
-    BroadcastMessage(TEXT("Draw! All players used every guess."));
-    ResetGame();
+    FinishGameAsDraw();
 }
 
 void ANBGameModeBase::HandleTurnTimeout()
@@ -363,8 +357,7 @@ void ANBGameModeBase::HandleTurnTimeout()
 
     if (AreAllPlayersOutOfGuesses())
     {
-        BroadcastMessage(TEXT("Draw! All players used every guess."));
-        ResetGame();
+        FinishGameAsDraw();
         return;
     }
 
@@ -540,9 +533,92 @@ bool ANBGameModeBase::AreAllPlayersOutOfGuesses() const
     return true;
 }
 
+void ANBGameModeBase::FinishGameWithWinner(
+    ANBPlayerState* WinnerPlayerState
+)
+{
+    if (!HasAuthority() || !IsValid(WinnerPlayerState))
+    {
+        return;
+    }
+
+    const int32 WinnerPlayerNumber =
+        WinnerPlayerState->GetPlayerNumber();
+
+    for (TActorIterator<ANBPlayerController> It(GetWorld()); It; ++It)
+    {
+        ANBPlayerController* PlayerController = *It;
+        if (!IsValid(PlayerController))
+        {
+            continue;
+        }
+
+        const ANBPlayerState* PlayerState =
+            PlayerController->GetPlayerState<ANBPlayerState>();
+
+        if (!IsValid(PlayerState))
+        {
+            continue;
+        }
+
+        if (PlayerState->GetPlayerNumber() == WinnerPlayerNumber)
+        {
+            PlayerController->ClientRPCReceiveMessage(
+                FString::Printf(
+                    TEXT("YOU WIN! Player %d guessed the secret number."),
+                    WinnerPlayerNumber
+                )
+            );
+        }
+        else
+        {
+            PlayerController->ClientRPCReceiveMessage(
+                FString::Printf(
+                    TEXT("YOU LOSE. Player %d wins."),
+                    WinnerPlayerNumber
+                )
+            );
+        }
+    }
+
+    ScheduleGameReset();
+}
+
+void ANBGameModeBase::FinishGameAsDraw()
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    BroadcastMessage(TEXT("DRAW! All players used every guess."));
+    ScheduleGameReset();
+}
+
+void ANBGameModeBase::ScheduleGameReset()
+{
+    bGameInProgress = false;
+    StopTurnTimer();
+
+    if (ANBGameStateBase* TurnGameState =
+        GetGameState<ANBGameStateBase>())
+    {
+        TurnGameState->ClearTurnState();
+    }
+
+    GetWorldTimerManager().SetTimer(
+        ResetTimerHandle,
+        this,
+        &ThisClass::ResetGame,
+        GameResetDelaySeconds,
+        false
+    );
+}
+
 void ANBGameModeBase::ResetGame()
 {
     StopTurnTimer();
+    GetWorldTimerManager().ClearTimer(ResetTimerHandle);
 
     if (ANBGameStateBase* TurnGameState =
         GetGameState<ANBGameStateBase>())

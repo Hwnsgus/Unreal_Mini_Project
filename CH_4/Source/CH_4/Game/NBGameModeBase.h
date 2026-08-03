@@ -46,6 +46,9 @@ private:
     void BroadcastMessage(const FString& Message) const;
     TArray<ANBPlayerState*> GetSortedPlayerStates() const;
     bool AreAllPlayersOutOfGuesses() const;
+    void FinishGameWithWinner(ANBPlayerState* WinnerPlayerState);
+    void FinishGameAsDraw();
+    void ScheduleGameReset();
     void ResetGame();
 
     UPROPERTY(EditDefaultsOnly, Category = "Turn", meta = (ClampMin = "1.0"))
@@ -54,8 +57,12 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Turn", meta = (ClampMin = "1"))
     int32 MinimumPlayersToStart;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Game", meta = (ClampMin = "0.1"))
+    float GameResetDelaySeconds;
+
     FString SecretNumber;
     int32 NextPlayerNumber;
     bool bGameInProgress;
     FTimerHandle TurnTimerHandle;
+    FTimerHandle ResetTimerHandle;
 };
