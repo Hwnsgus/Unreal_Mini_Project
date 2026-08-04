@@ -75,6 +75,16 @@ void ANBPlayerController::ClientRPCReceiveMessage_Implementation(
     PrintMessage(Message);
 }
 
+void ANBPlayerController::ClientRPCReceiveRichMessage_Implementation(
+    const FString& RichMessage,
+    const FString& PlainMessage
+)
+{
+    // RichTextBlock renders RichMessage, while logs keep readable plain text.
+    NotificationText = FText::FromString(RichMessage);
+    PrintMessage(PlainMessage);
+}
+
 FText ANBPlayerController::GetNotificationText() const
 {
     return NotificationText;
@@ -88,7 +98,7 @@ void ANBPlayerController::PrintMessage(const FString& Message) const
     {
         GEngine->AddOnScreenDebugMessage(
             -1,
-            6.0f,
+            30.0f,
             FColor::Cyan,
             Message
         );

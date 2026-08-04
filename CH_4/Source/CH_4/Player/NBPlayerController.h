@@ -17,6 +17,12 @@ public:
     UFUNCTION(Client, Reliable)
     void ClientRPCReceiveMessage(const FString& Message);
 
+    UFUNCTION(Client, Reliable)
+    void ClientRPCReceiveRichMessage(
+        const FString& RichMessage,
+        const FString& PlainMessage
+    );
+
     UFUNCTION(BlueprintPure, Category = "UI")
     FText GetNotificationText() const;
 

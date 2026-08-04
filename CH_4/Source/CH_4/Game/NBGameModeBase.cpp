@@ -196,12 +196,17 @@ void ANBGameModeBase::HandleGuess(
         ? TEXT("OUT")
         : FString::Printf(TEXT("%dS %dB"), StrikeCount, BallCount);
 
-    BroadcastMessage(
+    const FString StyledResult = FString::Printf(
+        TEXT("<Result>%s</>"),
+        *Result
+    );
+
+    BroadcastRichMessage(
         FString::Printf(
             TEXT("플레이어 %d: %s -> %s [%d/%d]"),
             PlayerState->GetPlayerNumber(),
             *Guess,
-            *Result,
+            *StyledResult,
             PlayerState->GetCurrentGuessCount(),
             PlayerState->GetMaxGuessCount()
         )
@@ -474,6 +479,27 @@ void ANBGameModeBase::BroadcastMessage(const FString& Message) const
         if (IsValid(PlayerController))
         {
             PlayerController->ClientRPCReceiveMessage(Message);
+        }
+    }
+}
+
+void ANBGameModeBase::BroadcastRichMessage(
+    const FString& RichMessage
+) const
+{
+    FString PlainMessage = RichMessage;
+    PlainMessage.ReplaceInline(TEXT("<Result>"), TEXT(""));
+    PlainMessage.ReplaceInline(TEXT("</>"), TEXT(""));
+
+    for (TActorIterator<ANBPlayerController> It(GetWorld()); It; ++It)
+    {
+        ANBPlayerController* PlayerController = *It;
+        if (IsValid(PlayerController))
+        {
+            PlayerController->ClientRPCReceiveRichMessage(
+                RichMessage,
+                PlainMessage
+            );
         }
     }
 }

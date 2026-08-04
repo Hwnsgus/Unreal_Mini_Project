@@ -44,6 +44,7 @@ private:
     void StopTurnTimer();
 
     void BroadcastMessage(const FString& Message) const;
+    void BroadcastRichMessage(const FString& RichMessage) const;
     TArray<ANBPlayerState*> GetSortedPlayerStates() const;
     bool AreAllPlayersOutOfGuesses() const;
     void FinishGameWithWinner(ANBPlayerState* WinnerPlayerState);
