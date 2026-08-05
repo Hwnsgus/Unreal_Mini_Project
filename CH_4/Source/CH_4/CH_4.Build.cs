@@ -15,7 +15,8 @@ public class CH_4 : ModuleRules
             "EnhancedInput",
 
             // UI
-            "UMG"
+            "UMG",
+            "SpacetimeDbSdk"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[]
