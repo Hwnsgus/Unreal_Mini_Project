@@ -12,6 +12,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "SpacetimeDbSdk",
+			"Enabled": true
+		},
+		{
 			"Name": "ModelingToolsEditorMode",
 			"Enabled": true,
 			"TargetAllowList": [

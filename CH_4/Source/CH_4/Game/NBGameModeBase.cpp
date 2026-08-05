@@ -4,11 +4,13 @@
 #include "Game/NBGameStateBase.h"
 #include "Player/NBPlayerController.h"
 #include "Player/NBPlayerState.h"
+#include "DataBase/DatabaseSubsystem.h"
 
 ANBGameModeBase::ANBGameModeBase()
     : TurnDurationSeconds(30.0f)
     , MinimumPlayersToStart(2)
     , GameResetDelaySeconds(3.0f)
+    , CurrentRoundNumber(1)
     , NextPlayerNumber(1)
     , bGameInProgress(false)
 {
@@ -24,6 +26,7 @@ void ANBGameModeBase::BeginPlay()
 {
     Super::BeginPlay();
 
+    SessionId = FGuid::NewGuid().ToString(EGuidFormats::Digits);
     SecretNumber = GenerateSecretNumber();
 
     UE_LOG(
@@ -58,11 +61,12 @@ void ANBGameModeBase::OnPostLogin(AController* NewPlayer)
     const int32 AssignedPlayerNumber = NextPlayerNumber++;
     PlayerState->SetPlayerNumber(AssignedPlayerNumber);
 
-    PlayerController->ClientRPCReceiveMessage(
+    PlayerController->ClientRPCReceiveColoredMessage(
         FString::Printf(
             TEXT("당신은 %d 플레이어입니다. 1부터 9까지 고유 숫자 3개를 입력하세요."),
             AssignedPlayerNumber
-        )
+        ),
+        FColor::Yellow
     );
 
     BroadcastMessage(
@@ -201,6 +205,20 @@ void ANBGameModeBase::HandleGuess(
         *Result
     );
 
+    if (UDatabaseSubsystem* Database =
+        GetGameInstance()->GetSubsystem<UDatabaseSubsystem>())
+    {
+        Database->RecordGuess(
+            SessionId,
+            CurrentRoundNumber,
+            PlayerState->GetPlayerNumber(),
+            Guess,
+            StrikeCount,
+            BallCount,
+            PlayerState->GetCurrentGuessCount()
+        );
+    }
+
     BroadcastRichMessage(
         FString::Printf(
             TEXT("플레이어 %d: %s -> %s [%d/%d]"),
@@ -210,7 +228,7 @@ void ANBGameModeBase::HandleGuess(
             PlayerState->GetCurrentGuessCount(),
             PlayerState->GetMaxGuessCount()
         ),
-        FColor::Red
+        FColor::Yellow
     );
 
     if (StrikeCount == 3)
@@ -584,6 +602,18 @@ void ANBGameModeBase::FinishGameWithWinner(
     const int32 WinnerPlayerNumber =
         WinnerPlayerState->GetPlayerNumber();
 
+    if (UDatabaseSubsystem* Database =
+        GetGameInstance()->GetSubsystem<UDatabaseSubsystem>())
+    {
+        Database->RecordRoundResult(
+            SessionId,
+            CurrentRoundNumber,
+            SecretNumber,
+            WinnerPlayerNumber,
+            false
+        );
+    }
+
     for (ANBPlayerState* PlayerState : GetSortedPlayerStates())
     {
         PlayerState->SetMatchResult(
@@ -644,6 +674,18 @@ void ANBGameModeBase::FinishGameAsDraw()
         PlayerState->SetMatchResult(ENBMatchResult::Draw);
     }
 
+    if (UDatabaseSubsystem* Database =
+        GetGameInstance()->GetSubsystem<UDatabaseSubsystem>())
+    {
+        Database->RecordRoundResult(
+            SessionId,
+            CurrentRoundNumber,
+            SecretNumber,
+            0,
+            true
+        );
+    }
+
     BroadcastMessage(TEXT("비겼습니다! 모든 플레이어가 기회를 모두 사용했습니다."));
     ScheduleGameReset();
 }
@@ -685,6 +727,7 @@ void ANBGameModeBase::ResetGame()
         PlayerState->ResetMatchResult();
     }
 
+    ++CurrentRoundNumber;
     SecretNumber = GenerateSecretNumber();
     bGameInProgress = false;
 

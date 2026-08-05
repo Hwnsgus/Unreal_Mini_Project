@@ -49,11 +49,56 @@ const guess_result = table(
   },
 );
 
+// Records produced by the authoritative Unreal GameMode. These are kept
+// separate from guess_result because the SpacetimeDB-native game has its own
+// secret answer and reducer flow.
+const unreal_guess_log = table(
+  { name: "unreal_guess_log", public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    session_id: t.string().index("btree"),
+    round: t.u32().index("btree"),
+    player_number: t.u32().index("btree"),
+    guess: t.string(),
+    strikes: t.u32(),
+    balls: t.u32(),
+    is_out: t.bool(),
+    attempt_number: t.u32(),
+    created_at: t.timestamp(),
+  },
+);
+
+// The answer is inserted only after the Unreal round finishes, so making this
+// table public does not reveal an answer for an active round.
+const unreal_round_result = table(
+  { name: "unreal_round_result", public: true },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    session_id: t.string().index("btree"),
+    round: t.u32().index("btree"),
+    answer: t.string(),
+    status: t.string(),
+    winner_player_number: t.u32().optional(),
+    ended_at: t.timestamp(),
+  },
+);
+
+const unreal_player_stats = table(
+  { name: "unreal_player_stats", public: true },
+  {
+    player_number: t.u32().primaryKey(),
+    wins: t.u32(),
+  },
+);
+
 const spacetimedb = schema({
   player,
   game_state,
   game_secret,
   guess_result,
+  unreal_guess_log,
+  unreal_round_result,
+  unreal_player_stats,
 });
 
 export default spacetimedb;
@@ -112,6 +157,110 @@ function scoreGuess(answer: string, guess: string) {
     isOut: strikes === 0 && balls === 0,
   };
 }
+
+function validatePlayerNumber(value: number) {
+  if (value !== 1 && value !== 2) {
+    throw new SenderError("플레이어 번호는 1 또는 2여야 합니다.");
+  }
+  return value;
+}
+
+function validateSessionId(value: string) {
+  const sessionId = value.trim();
+  if (!sessionId || sessionId.length > 64) {
+    throw new SenderError("세션 ID가 올바르지 않습니다.");
+  }
+  return sessionId;
+}
+
+export const record_unreal_guess = spacetimedb.reducer(
+  {
+    session_id: t.string(),
+    round: t.u32(),
+    player_number: t.u32(),
+    guess: t.string(),
+    strikes: t.u32(),
+    balls: t.u32(),
+    attempt_number: t.u32(),
+  },
+  (
+    ctx,
+    {
+      session_id,
+      round,
+      player_number,
+      guess,
+      strikes,
+      balls,
+      attempt_number,
+    },
+  ) => {
+    if (round === 0) throw new SenderError("라운드는 1 이상이어야 합니다.");
+    if (attempt_number === 0 || attempt_number > MAX_ATTEMPTS) {
+      throw new SenderError("시도 횟수가 올바르지 않습니다.");
+    }
+    if (strikes > 3 || balls > 3 || strikes + balls > 3) {
+      throw new SenderError("스트라이크/볼 결과가 올바르지 않습니다.");
+    }
+
+    ctx.db.unreal_guess_log.insert({
+      id: 0n,
+      session_id: validateSessionId(session_id),
+      round,
+      player_number: validatePlayerNumber(player_number),
+      guess: validateGuess(guess),
+      strikes,
+      balls,
+      is_out: strikes === 0 && balls === 0,
+      attempt_number,
+      created_at: ctx.timestamp,
+    });
+  },
+);
+
+export const record_unreal_round_result = spacetimedb.reducer(
+  {
+    session_id: t.string(),
+    round: t.u32(),
+    answer: t.string(),
+    status: t.string(),
+    winner_player_number: t.u32(),
+  },
+  (ctx, { session_id, round, answer, status, winner_player_number }) => {
+    if (round === 0) throw new SenderError("라운드는 1 이상이어야 합니다.");
+    if (status !== "won" && status !== "draw") {
+      throw new SenderError("라운드 결과는 won 또는 draw여야 합니다.");
+    }
+    const winner = status === "won"
+      ? validatePlayerNumber(winner_player_number)
+      : undefined;
+
+    ctx.db.unreal_round_result.insert({
+      id: 0n,
+      session_id: validateSessionId(session_id),
+      round,
+      answer: validateGuess(answer),
+      status,
+      winner_player_number: winner,
+      ended_at: ctx.timestamp,
+    });
+
+    if (winner !== undefined) {
+      const stats = ctx.db.unreal_player_stats.player_number.find(winner);
+      if (stats) {
+        ctx.db.unreal_player_stats.player_number.update({
+          ...stats,
+          wins: stats.wins + 1,
+        });
+      } else {
+        ctx.db.unreal_player_stats.insert({
+          player_number: winner,
+          wins: 1,
+        });
+      }
+    }
+  },
+);
 
 export const set_name = spacetimedb.reducer(
   { name: t.string() },

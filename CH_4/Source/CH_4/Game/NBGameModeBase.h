@@ -69,6 +69,8 @@ private:
     float GameResetDelaySeconds;
 
     FString SecretNumber;
+    FString SessionId;
+    int32 CurrentRoundNumber;
     int32 NextPlayerNumber;
     bool bGameInProgress;
     FTimerHandle TurnTimerHandle;
