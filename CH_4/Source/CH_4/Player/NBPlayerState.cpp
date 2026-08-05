@@ -5,7 +5,7 @@
 ANBPlayerState::ANBPlayerState()
     : PlayerNumber(0)
     , CurrentGuessCount(0)
-    , MaxGuessCount(3)
+    , MaxGuessCount(5)
     , MatchResult(ENBMatchResult::None)
 {
     bReplicates = true;

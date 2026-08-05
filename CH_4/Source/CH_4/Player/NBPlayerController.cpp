@@ -72,17 +72,26 @@ void ANBPlayerController::ClientRPCReceiveMessage_Implementation(
 )
 {
     NotificationText = FText::FromString(Message);
-    PrintMessage(Message);
+    PrintMessage(Message, FColor::Cyan);
+}
+
+void ANBPlayerController::ClientRPCReceiveColoredMessage_Implementation(
+    const FString& Message,
+    FColor MessageColor
+)
+{
+    NotificationText = FText::FromString(Message);
+    PrintMessage(Message, MessageColor);
 }
 
 void ANBPlayerController::ClientRPCReceiveRichMessage_Implementation(
     const FString& RichMessage,
-    const FString& PlainMessage
+    const FString& PlainMessage,
+    FColor MessageColor
 )
 {
-    // RichTextBlock renders RichMessage, while logs keep readable plain text.
     NotificationText = FText::FromString(RichMessage);
-    PrintMessage(PlainMessage);
+    PrintMessage(PlainMessage, MessageColor);
 }
 
 FText ANBPlayerController::GetNotificationText() const
@@ -90,7 +99,10 @@ FText ANBPlayerController::GetNotificationText() const
     return NotificationText;
 }
 
-void ANBPlayerController::PrintMessage(const FString& Message) const
+void ANBPlayerController::PrintMessage(
+    const FString& Message,
+    const FColor& MessageColor
+) const
 {
     UE_LOG(LogTemp, Log, TEXT("%s"), *Message);
 
@@ -99,7 +111,7 @@ void ANBPlayerController::PrintMessage(const FString& Message) const
         GEngine->AddOnScreenDebugMessage(
             -1,
             30.0f,
-            FColor::Cyan,
+            MessageColor,
             Message
         );
     }

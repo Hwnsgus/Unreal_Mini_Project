@@ -43,8 +43,15 @@ private:
     bool IsPlayersTurn(const ANBPlayerController* PlayerController) const;
     void StopTurnTimer();
 
-    void BroadcastMessage(const FString& Message) const;
-    void BroadcastRichMessage(const FString& RichMessage) const;
+    void BroadcastMessage(
+    const FString& Message,
+    const FColor& MessageColor = FColor::Cyan
+    ) const;
+
+    void BroadcastRichMessage(
+        const FString& RichMessage,
+        const FColor& MessageColor = FColor::Cyan
+    ) const;
     TArray<ANBPlayerState*> GetSortedPlayerStates() const;
     bool AreAllPlayersOutOfGuesses() const;
     void FinishGameWithWinner(ANBPlayerState* WinnerPlayerState);

@@ -209,7 +209,8 @@ void ANBGameModeBase::HandleGuess(
             *StyledResult,
             PlayerState->GetCurrentGuessCount(),
             PlayerState->GetMaxGuessCount()
-        )
+        ),
+        FColor::Red
     );
 
     if (StrikeCount == 3)
@@ -282,7 +283,8 @@ void ANBGameModeBase::StartTurn(const int32 PlayerNumber)
             TEXT("플레이어 %d의 차례입니다. %.0f초 남았습니다."),
             PlayerNumber,
             TurnDurationSeconds
-        )
+        ),
+        FColor::Red
     );
 }
 
@@ -471,20 +473,28 @@ void ANBGameModeBase::JudgeGuess(
     }
 }
 
-void ANBGameModeBase::BroadcastMessage(const FString& Message) const
+void ANBGameModeBase::BroadcastMessage(
+    const FString& Message,
+    const FColor& MessageColor
+) const
 {
     for (TActorIterator<ANBPlayerController> It(GetWorld()); It; ++It)
     {
         ANBPlayerController* PlayerController = *It;
+
         if (IsValid(PlayerController))
         {
-            PlayerController->ClientRPCReceiveMessage(Message);
+            PlayerController->ClientRPCReceiveColoredMessage(
+                Message,
+                MessageColor
+            );
         }
     }
 }
 
 void ANBGameModeBase::BroadcastRichMessage(
-    const FString& RichMessage
+    const FString& RichMessage,
+    const FColor& MessageColor
 ) const
 {
     FString PlainMessage = RichMessage;
@@ -494,16 +504,17 @@ void ANBGameModeBase::BroadcastRichMessage(
     for (TActorIterator<ANBPlayerController> It(GetWorld()); It; ++It)
     {
         ANBPlayerController* PlayerController = *It;
+
         if (IsValid(PlayerController))
         {
             PlayerController->ClientRPCReceiveRichMessage(
                 RichMessage,
-                PlainMessage
+                PlainMessage,
+                MessageColor
             );
         }
     }
 }
-
 TArray<ANBPlayerState*> ANBGameModeBase::GetSortedPlayerStates() const
 {
     TArray<ANBPlayerState*> Result;

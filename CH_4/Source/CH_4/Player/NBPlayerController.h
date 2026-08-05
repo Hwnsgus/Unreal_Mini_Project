@@ -18,9 +18,16 @@ public:
     void ClientRPCReceiveMessage(const FString& Message);
 
     UFUNCTION(Client, Reliable)
+    void ClientRPCReceiveColoredMessage(
+        const FString& Message,
+        FColor MessageColor
+    );
+    
+    UFUNCTION(Client, Reliable)
     void ClientRPCReceiveRichMessage(
         const FString& RichMessage,
-        const FString& PlainMessage
+        const FString& PlainMessage,
+        FColor MessageColor
     );
 
     UFUNCTION(BlueprintPure, Category = "UI")
@@ -31,6 +38,12 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    
+private:
+    void PrintMessage(
+        const FString& Message,
+        const FColor& MessageColor = FColor::Cyan
+    ) const;
 
     UFUNCTION(Server, Reliable)
     void ServerRPCSubmitGuess(const FString& Guess);
