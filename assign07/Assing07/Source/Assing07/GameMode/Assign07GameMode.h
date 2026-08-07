@@ -4,15 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
-#include "Assing07GameMode.generated.h"
+#include "Assign07GameMode.generated.h"
 
 UCLASS(minimalapi)
-class AAssing07GameMode : public AGameModeBase
+class AAssign07GameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
-	AAssing07GameMode();
+	AAssign07GameMode();
 };
 
 
