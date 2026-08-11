@@ -9,6 +9,7 @@ public class Assing07 : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PrivateDependencyModuleNames.Add("Test");
 		
 		PublicIncludePaths.AddRange(new string[]
 		{

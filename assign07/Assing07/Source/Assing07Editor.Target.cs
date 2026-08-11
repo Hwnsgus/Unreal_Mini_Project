@@ -10,6 +10,6 @@ public class Assing07EditorTarget : TargetRules
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_5;
-		ExtraModuleNames.Add("Assing07");
+		ExtraModuleNames.AddRange(new string[] { "Assing07", "Test" });
 	}
 }

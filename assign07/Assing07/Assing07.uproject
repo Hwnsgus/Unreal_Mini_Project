@@ -8,6 +8,11 @@
 			"Name": "Assing07",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "Test",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
 		}
 	],
 	"Plugins": [
@@ -17,6 +22,10 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "Temporary",
+			"Enabled": true
 		}
 	]
 }

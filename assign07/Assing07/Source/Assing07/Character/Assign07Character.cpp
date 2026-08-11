@@ -7,6 +7,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "TestActor.h"
 
 AAssign07Character::AAssign07Character()
 {
@@ -49,6 +50,22 @@ void AAssign07Character::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void AAssign07Character::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 액터 생성은 서버에서만 수행해 멀티플레이 PIE에서 중복 생성을 방지합니다.
+	if (HasAuthority())
+	{
+		if (UWorld* World = GetWorld())
+		{
+			FActorSpawnParameters SpawnParameters;
+			SpawnParameters.Owner = this;
+			SpawnParameters.SpawnCollisionHandlingOverride =
+				ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+			const FVector SpawnLocation = GetActorLocation() + GetActorForwardVector() * 150.0f;
+			World->SpawnActor<ATestActor>(
+				ATestActor::StaticClass(), SpawnLocation, GetActorRotation(), SpawnParameters);
+		}
+	}
 
 	if (IsLocallyControlled())
 	{
